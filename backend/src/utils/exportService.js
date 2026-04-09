@@ -424,16 +424,20 @@ async function exportPdf(p) {
     [[`TOTAL PRESUPUESTO`, fmt(totalBruto)], [`IVA (${p.iva_porcentaje}%)`, fmt(iva)], ['TOTAL', fmt(total)]].forEach(([label, val], i) => {
       const isBold = i === 2;
       doc.fillColor(i % 2 === 0 ? [240, 240, 240] : 'white').rect(tx, y, tw, 16).fill();
-      doc.fillColor('#222').font(isBold ? 'Helvetica-Bold' : 'Helvetica').fontSize(8)
-        .text(label, tx + 4, y + 4, { width: 110 })
-        .text(val, tx + 114, y + 4, { width: tw - 120, align: 'right' });
+      doc.fillColor('#222').font(isBold ? 'Helvetica-Bold' : 'Helvetica').fontSize(8);
+      doc.text(label, tx + 4, y + 4, { width: 110, lineBreak: false });
+      doc.text(val, tx + 114, y + 4, { width: tw - 120, align: 'right', lineBreak: false });
       y += 16;
     });
 
-    // ─── Pie ─────────────────────────────────────────────────────────────────
-    doc.fillColor('#999').fontSize(7).font('Helvetica')
-      .text(`${EMPRESA.nombre} · ${EMPRESA.cif} · ${EMPRESA.oficina} · ${EMPRESA.direccion} · ${EMPRESA.localidad}`,
-        40, doc.page.height - 40, { width: W, align: 'center' });
+    // ─── Pie (siempre en la última página, dentro del margen seguro) ──────────
+    const footerY = doc.page.height - 58;
+    doc.moveTo(40, footerY - 6).lineTo(40 + W, footerY - 6).strokeColor('#ddd').lineWidth(0.5).stroke();
+    doc.fillColor('#999').fontSize(6.5).font('Helvetica')
+      .text(
+        `${EMPRESA.nombre} · ${EMPRESA.cif} · ${EMPRESA.oficina} · ${EMPRESA.direccion} · ${EMPRESA.localidad}`,
+        40, footerY, { width: W, align: 'center', lineBreak: false }
+      );
 
     doc.end();
   });
