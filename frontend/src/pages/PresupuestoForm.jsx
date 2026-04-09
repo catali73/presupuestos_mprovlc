@@ -116,28 +116,28 @@ function LineaPersonal({ linea, onChange, onRemove, tarifasPersonas = [], tarifa
 
   return (
     <tr className="border-b border-gray-100 group">
-      <td className="px-2 py-1.5">
+      <td className="px-2 py-1.5 w-48">
         <input
           list={listPersonasId}
-          className="input text-xs"
+          className="input text-xs w-full"
           value={linea.descripcion}
           onChange={e => handleChange('descripcion', e.target.value)}
           placeholder="Posición / seleccionar..."
         />
       </td>
       <td className="px-2 py-1.5 w-24">
-        <input className="input text-xs text-right" type="number" value={linea.tarifa} onChange={e => handleChange('tarifa', e.target.value)} />
+        <input className="input text-xs text-right w-full" type="number" value={linea.tarifa} onChange={e => handleChange('tarifa', e.target.value)} />
       </td>
-      <td className="px-2 py-1.5 w-16">
-        <input className="input text-xs text-center" type="number" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} />
+      <td className="px-2 py-1.5 w-14">
+        <input className="input text-xs text-center w-full" type="number" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} />
       </td>
-      <td className="px-2 py-1.5 w-16">
-        <input className="input text-xs text-center" type="number" value={linea.num_pax} onChange={e => handleChange('num_pax', e.target.value)} />
+      <td className="px-2 py-1.5 w-14">
+        <input className="input text-xs text-center w-full" type="number" value={linea.num_pax} onChange={e => handleChange('num_pax', e.target.value)} />
       </td>
-      <td className="px-2 py-1.5 w-36">
-        <div className="flex gap-1">
+      <td className="px-2 py-1.5 w-44">
+        <div className="flex gap-1 items-center">
           <select
-            className="select text-xs flex-1 min-w-0"
+            className="select text-xs flex-1 min-w-0 py-1"
             value={linea.dieta_tipo || ''}
             onChange={e => handleChange('dieta_tipo', e.target.value)}
           >
@@ -147,7 +147,7 @@ function LineaPersonal({ linea, onChange, onRemove, tarifasPersonas = [], tarifa
             ))}
           </select>
           <input
-            className="input text-xs text-right w-20"
+            className="input text-xs text-right w-16"
             type="number"
             value={linea.dieta}
             onChange={e => handleChange('dieta', e.target.value)}
@@ -155,11 +155,11 @@ function LineaPersonal({ linea, onChange, onRemove, tarifasPersonas = [], tarifa
           />
         </div>
       </td>
-      <td className="px-2 py-1.5 w-16">
-        <input className="input text-xs text-center" type="number" value={linea.num_dietas} onChange={e => handleChange('num_dietas', e.target.value)} />
+      <td className="px-2 py-1.5 w-14">
+        <input className="input text-xs text-center w-full" type="number" value={linea.num_dietas} onChange={e => handleChange('num_dietas', e.target.value)} />
       </td>
-      <td className="px-2 py-1.5 w-28">
-        <input className="input text-xs text-right bg-gray-50" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} />
+      <td className="px-2 py-1.5 w-24">
+        <input className="input text-xs text-right bg-gray-50 w-full" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} />
       </td>
       <td className="px-2 py-1.5 w-8">
         <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
@@ -651,13 +651,13 @@ export default function PresupuestoForm() {
               <SectionTable title="PERSONAL CONTRATADO" color="orange" onAdd={() => setLineasPersCont(p => [...p, emptyLineaPersonal()])}>
                 <table className="w-full text-xs">
                   <thead><tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="px-2 py-2 text-left text-gray-500">Posición / Descripción</th>
+                    <th className="px-2 py-2 text-left text-gray-500 w-48">Posición / Descripción</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-24">Tarifa</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">Jorn.</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">Nº PAX</th>
-                    <th className="px-2 py-2 text-left text-gray-500 w-36">Dieta</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">NºDieta</th>
-                    <th className="px-2 py-2 text-right text-gray-500 w-28">Importe</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-14">Jorn.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-14">Nº PAX</th>
+                    <th className="px-2 py-2 text-left text-gray-500 w-44">Dieta</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-14">NºDieta</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-24">Importe</th>
                     <th className="w-8" />
                   </tr></thead>
                   <tbody>
@@ -679,13 +679,13 @@ export default function PresupuestoForm() {
               <SectionTable title="PERSONAL ALTAS / BAJAS" color="orange" onAdd={() => setLineasPersAB(p => [...p, emptyLineaPersonal()])}>
                 <table className="w-full text-xs">
                   <thead><tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="px-2 py-2 text-left text-gray-500">Posición / Descripción</th>
+                    <th className="px-2 py-2 text-left text-gray-500 w-48">Posición / Descripción</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-24">Tarifa</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">Jorn.</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">Nº PAX</th>
-                    <th className="px-2 py-2 text-left text-gray-500 w-36">Dieta</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">NºDieta</th>
-                    <th className="px-2 py-2 text-right text-gray-500 w-28">Importe</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-14">Jorn.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-14">Nº PAX</th>
+                    <th className="px-2 py-2 text-left text-gray-500 w-44">Dieta</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-14">NºDieta</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-24">Importe</th>
                     <th className="w-8" />
                   </tr></thead>
                   <tbody>

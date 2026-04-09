@@ -343,26 +343,32 @@ async function exportPdf(p) {
       y += 14;
 
       // Filas de datos
+      const ROW_H = 14;
       if (rows.length === 0) {
         // Sección vacía — mostrar fila indicativa
-        doc.fillColor([250, 250, 250]).rect(40, y, W, 13).fill();
-        doc.fillColor('#aaa').font('Helvetica').fontSize(7).text('Sin líneas', 44, y + 3);
-        y += 13;
+        doc.fillColor([250, 250, 250]).rect(40, y, W, ROW_H).fill();
+        doc.fillColor('#aaa').font('Helvetica').fontSize(7).text('Sin líneas', 44, y + 4, { lineBreak: false });
+        y += ROW_H;
       } else {
         rows.forEach((row, ri) => {
           if (y > doc.page.height - 80) { doc.addPage(); y = 40; }
           if (ri % 2 === 0) {
-            doc.fillColor([250, 250, 250]).rect(40, y, W, 13).fill();
+            doc.fillColor([250, 250, 250]).rect(40, y, W, ROW_H).fill();
           } else {
-            doc.fillColor('white').rect(40, y, W, 13).fill();
+            doc.fillColor('white').rect(40, y, W, ROW_H).fill();
           }
           doc.fillColor('#333').font('Helvetica').fontSize(7);
           x = 40;
           row.forEach((cell, i) => {
-            doc.text(String(cell ?? ''), x + 2, y + 3, { width: colWidths[i] - 4, align: i === 0 ? 'left' : 'right' });
+            // lineBreak: false evita que texto largo desborde la fila
+            doc.text(String(cell ?? ''), x + 2, y + 4, {
+              width: colWidths[i] - 4,
+              align: i === 0 ? 'left' : 'right',
+              lineBreak: false,
+            });
             x += colWidths[i];
           });
-          y += 13;
+          y += ROW_H;
         });
       }
 
