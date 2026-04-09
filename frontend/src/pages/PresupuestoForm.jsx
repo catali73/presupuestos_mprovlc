@@ -1,0 +1,627 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, Trash2, Save, ArrowLeft, Send, Download, ChevronDown } from 'lucide-react';
+import api from '../lib/api';
+import StatusBadge from '../components/StatusBadge';
+
+const DEPARTAMENTOS = ['CAMARAS_ESPECIALES', 'PRODUCCIONES_VLC', 'INTERNACIONAL', 'VALENCIA_MEDIA'];
+const TIPOLOGIAS = ['LIGA', 'CHAMPIONS', 'EVENTOS', 'PROGRAMAS'];
+const STATUSES = ['PREPARADO', 'ENVIADO', 'APROBADO', 'DESCARTADO', 'FACTURADO', 'PENDIENTE_FACTURAR'];
+const STATUS_LABELS = {
+  PREPARADO: 'Preparado', ENVIADO: 'Enviado', APROBADO: 'Aprobado',
+  DESCARTADO: 'Descartado', FACTURADO: 'Facturado', PENDIENTE_FACTURAR: 'Pte. Facturar',
+};
+
+function emptyLineaGeneral() { return { descripcion: '', uds: '', unidades: '', jornadas: '', coste_jornada: '', importe: '' }; }
+function emptyLineaPersonal() { return { descripcion: '', tarifa: '', jornadas: '', num_pax: '', dieta: '', num_dietas: '', importe: '', es_especial: false }; }
+function emptyLineaLogisticaGeneral() { return { descripcion: '', uds: '', unidades: '', jornadas: '', coste_jornada: '', importe: '' }; }
+function emptyLineaLogisticaPersonal() { return { descripcion: '', cantidad: '', precio: '', importe: '' }; }
+
+function calcImporteGeneral(l) {
+  const uds = parseFloat(l.uds) || 1;
+  const unidades = parseFloat(l.unidades) || 0;
+  const jornadas = parseFloat(l.jornadas) || 0;
+  const coste = parseFloat(l.coste_jornada) || 0;
+  if (unidades && jornadas && coste) return (uds * unidades * jornadas * coste).toFixed(2);
+  if (l.importe) return l.importe;
+  return '';
+}
+
+function calcImportePersonal(l) {
+  const tarifa = parseFloat(l.tarifa) || 0;
+  const jornadas = parseFloat(l.jornadas) || 0;
+  const pax = parseFloat(l.num_pax) || 0;
+  const dieta = parseFloat(l.dieta) || 0;
+  const nDietas = parseFloat(l.num_dietas) || 0;
+  if (tarifa && jornadas && pax) return ((tarifa * jornadas * pax) + (dieta * nDietas)).toFixed(2);
+  return l.importe || '';
+}
+
+function calcImporteLogisticaPersonal(l) {
+  const cantidad = parseFloat(l.cantidad) || 0;
+  const precio = parseFloat(l.precio) || 0;
+  if (cantidad && precio) return (cantidad * precio).toFixed(2);
+  return l.importe || '';
+}
+
+function fmt(v) {
+  if (v == null || v === '') return '—';
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(v);
+}
+
+// ─── Fila editable tipo GENERAL ───────────────────────────────────────────────
+function LineaGeneral({ linea, onChange, onRemove, tarifas }) {
+  const handleChange = (key, val) => {
+    const updated = { ...linea, [key]: val };
+    updated.importe = calcImporteGeneral(updated);
+    onChange(updated);
+  };
+
+  return (
+    <tr className="border-b border-gray-100 group">
+      <td className="px-2 py-1.5">
+        <input
+          list="tarifas-equipos-list"
+          className="input text-xs"
+          value={linea.descripcion}
+          onChange={e => handleChange('descripcion', e.target.value)}
+          placeholder="Descripción"
+        />
+      </td>
+      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.uds} onChange={e => handleChange('uds', e.target.value)} placeholder="1" /></td>
+      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.unidades} onChange={e => handleChange('unidades', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right" type="number" value={linea.coste_jornada} onChange={e => handleChange('coste_jornada', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right bg-gray-50" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-8">
+        <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
+          <Trash2 size={13} />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+// ─── Fila editable tipo PERSONAL ──────────────────────────────────────────────
+function LineaPersonal({ linea, onChange, onRemove }) {
+  const handleChange = (key, val) => {
+    const updated = { ...linea, [key]: val };
+    updated.importe = calcImportePersonal(updated);
+    onChange(updated);
+  };
+
+  return (
+    <tr className="border-b border-gray-100 group">
+      <td className="px-2 py-1.5">
+        <input className="input text-xs" value={linea.descripcion} onChange={e => handleChange('descripcion', e.target.value)} placeholder="Posición / descripción" />
+      </td>
+      <td className="px-2 py-1.5 w-24"><input className="input text-xs text-right" type="number" value={linea.tarifa} onChange={e => handleChange('tarifa', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.num_pax} onChange={e => handleChange('num_pax', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-24"><input className="input text-xs text-right" type="number" value={linea.dieta} onChange={e => handleChange('dieta', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.num_dietas} onChange={e => handleChange('num_dietas', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right bg-gray-50" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-8">
+        <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
+          <Trash2 size={13} />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+// ─── Fila logística Personal ──────────────────────────────────────────────────
+function LineaLogisticaPersonal({ linea, onChange, onRemove }) {
+  const handleChange = (key, val) => {
+    const updated = { ...linea, [key]: val };
+    updated.importe = calcImporteLogisticaPersonal(updated);
+    onChange(updated);
+  };
+  return (
+    <tr className="border-b border-gray-100 group">
+      <td className="px-2 py-1.5 w-1/2"><input className="input text-xs" value={linea.descripcion} onChange={e => handleChange('descripcion', e.target.value)} placeholder="Descripción" /></td>
+      <td className="px-2 py-1.5 w-24"><input className="input text-xs text-center" type="number" value={linea.cantidad} onChange={e => handleChange('cantidad', e.target.value)} placeholder="Cantidad" /></td>
+      <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right" type="number" value={linea.precio} onChange={e => handleChange('precio', e.target.value)} placeholder="Precio" /></td>
+      <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right bg-gray-50" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-8">
+        <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1"><Trash2 size={13} /></button>
+      </td>
+    </tr>
+  );
+}
+
+function SectionTable({ title, color = 'red', children, onAdd }) {
+  const colors = {
+    red: 'bg-red-700 text-white',
+    orange: 'bg-orange-500 text-white',
+  };
+  return (
+    <div className="mb-4">
+      <div className={`${colors[color]} px-4 py-2 rounded-t-lg flex items-center justify-between`}>
+        <span className="font-semibold text-sm">{title}</span>
+        <button onClick={onAdd} className="flex items-center gap-1 text-xs opacity-80 hover:opacity-100">
+          <Plus size={13} /> Añadir línea
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
+export default function PresupuestoForm() {
+  const { id, tipo: tipoParam } = useParams();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const isNew = !id || id === 'nuevo';
+  const tipo = tipoParam || 'GENERAL';
+
+  const [form, setForm] = useState({
+    tipo, cliente_id: '', contacto_id: '', responsable_id: '',
+    departamento: '', tipologia: '', evento: '', competicion: '',
+    localizacion: '', fecha_inicio: '', fecha_fin: '',
+    status: 'PREPARADO', iva_porcentaje: tipo === 'PERSONAL' ? 0 : 21, notas: '',
+  });
+  const [lineasEquip, setLineasEquip] = useState([]);
+  const [lineasPersGeneral, setLineasPersGeneral] = useState([]);
+  const [lineasLogistica, setLineasLogistica] = useState([]);
+  const [lineasPersCont, setLineasPersCont] = useState([]);
+  const [lineasPersAB, setLineasPersAB] = useState([]);
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [emailMensaje, setEmailMensaje] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [sendLoading, setSendLoading] = useState(false);
+
+  // Cargar datos maestros
+  const { data: clientes = [] } = useQuery({ queryKey: ['clientes'], queryFn: () => api.get('/clientes').then(r => r.data) });
+  const { data: responsables = [] } = useQuery({ queryKey: ['responsables'], queryFn: () => api.get('/responsables').then(r => r.data) });
+
+  // Cargar presupuesto existente
+  const { data: presupuesto } = useQuery({
+    queryKey: ['presupuesto', id],
+    queryFn: () => api.get(`/presupuestos/${id}`).then(r => r.data),
+    enabled: !isNew && !!id,
+  });
+
+  useEffect(() => {
+    if (presupuesto) {
+      setForm({
+        tipo: presupuesto.tipo,
+        cliente_id: presupuesto.cliente_id || '',
+        contacto_id: presupuesto.contacto_id || '',
+        responsable_id: presupuesto.responsable_id || '',
+        departamento: presupuesto.departamento || '',
+        tipologia: presupuesto.tipologia || '',
+        evento: presupuesto.evento || '',
+        competicion: presupuesto.competicion || '',
+        localizacion: presupuesto.localizacion || '',
+        fecha_inicio: presupuesto.fecha_inicio?.slice(0, 10) || '',
+        fecha_fin: presupuesto.fecha_fin?.slice(0, 10) || '',
+        status: presupuesto.status,
+        iva_porcentaje: presupuesto.iva_porcentaje,
+        notas: presupuesto.notas || '',
+      });
+      setLineasEquip(presupuesto.lineas_equipamiento || []);
+      setLineasPersGeneral(presupuesto.lineas_personal_general || []);
+      setLineasLogistica(presupuesto.lineas_logistica || []);
+      setLineasPersCont(presupuesto.lineas_personal_contratado || []);
+      setLineasPersAB(presupuesto.lineas_personal_altas_bajas || []);
+    }
+  }, [presupuesto]);
+
+  const clienteSeleccionado = clientes.find(c => c.id == form.cliente_id);
+  const contactos = clienteSeleccionado?.contactos || [];
+
+  // Totales
+  const sumLineas = (arr) => arr.reduce((s, l) => s + (parseFloat(l.importe) || 0), 0);
+  const totalBruto = form.tipo === 'GENERAL'
+    ? sumLineas(lineasEquip) + sumLineas(lineasPersGeneral) + sumLineas(lineasLogistica)
+    : sumLineas(lineasPersCont) + sumLineas(lineasPersAB) + sumLineas(lineasLogistica);
+  const iva = totalBruto * (parseFloat(form.iva_porcentaje) / 100);
+  const total = totalBruto + iva;
+
+  const buildPayload = () => ({
+    ...form,
+    lineas_equipamiento: lineasEquip,
+    lineas_personal_general: lineasPersGeneral,
+    lineas_logistica: lineasLogistica,
+    lineas_personal_contratado: lineasPersCont,
+    lineas_personal_altas_bajas: lineasPersAB,
+  });
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (isNew) {
+        const { data } = await api.post('/presupuestos', buildPayload());
+        navigate(`/presupuestos/${data.id}`, { replace: true });
+      } else {
+        await api.put(`/presupuestos/${id}`, buildPayload());
+        qc.invalidateQueries(['presupuesto', id]);
+      }
+      qc.invalidateQueries(['presupuestos']);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleExport = async (formato) => {
+    if (isNew) return;
+    const res = await api.get(`/presupuestos/${id}/export/${formato}`, { responseType: 'blob' });
+    const ext = formato === 'excel' ? 'xlsx' : 'pdf';
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url; a.download = `presupuesto_${presupuesto?.numero}.${ext}`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSendEmail = async () => {
+    setSendLoading(true);
+    try {
+      await api.post(`/presupuestos/${id}/send-email`, {
+        to: emailTo, mensaje: emailMensaje, formato: 'pdf',
+      });
+      setShowSendModal(false);
+      qc.invalidateQueries(['presupuesto', id]);
+      qc.invalidateQueries(['presupuestos']);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al enviar');
+    } finally {
+      setSendLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    if (isNew) return;
+    await api.patch(`/presupuestos/${id}/status`, { status: newStatus });
+    qc.invalidateQueries(['presupuesto', id]);
+    qc.invalidateQueries(['presupuestos']);
+  };
+
+  const isGeneral = form.tipo === 'GENERAL';
+
+  const updateLinea = (setter, idx, updated) => setter(prev => prev.map((l, i) => i === idx ? updated : l));
+  const removeLinea = (setter, idx) => setter(prev => prev.filter((_, i) => i !== idx));
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-6">
+        <button onClick={() => navigate('/presupuestos')} className="btn-ghost p-2">
+          <ArrowLeft size={18} />
+        </button>
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold text-gray-900">
+              {isNew
+                ? `Nuevo presupuesto — ${isGeneral ? 'General' : 'Personal Valencia'}`
+                : `Presupuesto ${presupuesto?.numero}`}
+            </h1>
+            {!isNew && <StatusBadge status={form.status} />}
+          </div>
+          {!isNew && (
+            <p className="text-sm text-gray-500 mt-0.5">
+              {presupuesto?.fecha_presupuesto ? new Date(presupuesto.fecha_presupuesto).toLocaleDateString('es-ES') : ''}
+            </p>
+          )}
+        </div>
+
+        {/* Acciones */}
+        <div className="flex items-center gap-2">
+          {!isNew && (
+            <>
+              <div className="relative group">
+                <button className="btn-secondary">
+                  Status <ChevronDown size={14} />
+                </button>
+                <div className="absolute right-0 mt-1 w-48 card shadow-lg z-10 py-1 hidden group-hover:block">
+                  {STATUSES.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => handleStatusChange(s)}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${form.status === s ? 'font-semibold text-red-700' : ''}`}
+                    >
+                      {STATUS_LABELS[s]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button onClick={() => handleExport('excel')} className="btn-secondary">
+                <Download size={14} /> Excel
+              </button>
+              <button onClick={() => handleExport('pdf')} className="btn-secondary">
+                <Download size={14} /> PDF
+              </button>
+              <button onClick={() => { setEmailTo(clienteSeleccionado?.contactos?.[0]?.email || ''); setShowSendModal(true); }} className="btn-secondary">
+                <Send size={14} /> Enviar
+              </button>
+            </>
+          )}
+          <button onClick={handleSave} disabled={saving} className="btn-primary">
+            <Save size={14} /> {saving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Cabecera presupuesto */}
+        <div className="lg:col-span-2 card p-6 space-y-4">
+          <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Datos del presupuesto</h2>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Cliente *</label>
+              <select className="select" value={form.cliente_id} onChange={e => setForm(f => ({ ...f, cliente_id: e.target.value, contacto_id: '' }))}>
+                <option value="">Seleccionar cliente</option>
+                {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">{isGeneral ? 'Solicitado por' : 'Petición'}</label>
+              <select className="select" value={form.contacto_id} onChange={e => setForm(f => ({ ...f, contacto_id: e.target.value }))} disabled={!contactos.length}>
+                <option value="">Seleccionar contacto</option>
+                {contactos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Responsable</label>
+              <select className="select" value={form.responsable_id} onChange={e => setForm(f => ({ ...f, responsable_id: e.target.value }))}>
+                <option value="">Seleccionar responsable</option>
+                {responsables.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Departamento</label>
+              <select className="select" value={form.departamento} onChange={e => setForm(f => ({ ...f, departamento: e.target.value }))}>
+                <option value="">Seleccionar</option>
+                {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d.replace(/_/g, ' ')}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Tipología</label>
+              <select className="select" value={form.tipologia} onChange={e => setForm(f => ({ ...f, tipologia: e.target.value }))}>
+                <option value="">Seleccionar</option>
+                {TIPOLOGIAS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">IVA (%)</label>
+              <input className="input" type="number" value={form.iva_porcentaje} onChange={e => setForm(f => ({ ...f, iva_porcentaje: e.target.value }))} />
+            </div>
+          </div>
+
+          <div>
+            <label className="label">Evento / Proyecto</label>
+            <input className="input" value={form.evento} onChange={e => setForm(f => ({ ...f, evento: e.target.value }))} />
+          </div>
+
+          {!isGeneral && (
+            <div>
+              <label className="label">Competición</label>
+              <input className="input" value={form.competicion} onChange={e => setForm(f => ({ ...f, competicion: e.target.value }))} />
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="label">Localización</label>
+              <input className="input" value={form.localizacion} onChange={e => setForm(f => ({ ...f, localizacion: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Fecha inicio</label>
+              <input className="input" type="date" value={form.fecha_inicio} onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Fecha fin</label>
+              <input className="input" type="date" value={form.fecha_fin} onChange={e => setForm(f => ({ ...f, fecha_fin: e.target.value }))} />
+            </div>
+          </div>
+
+          <div>
+            <label className="label">Notas</label>
+            <textarea className="input" rows={2} value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} />
+          </div>
+        </div>
+
+        {/* Totales */}
+        <div className="card p-6 space-y-4">
+          <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Resumen</h2>
+          {isGeneral ? (
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Equipamiento</span><span>{fmt(sumLineas(lineasEquip))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Personal técnico</span><span>{fmt(sumLineas(lineasPersGeneral))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Logística</span><span>{fmt(sumLineas(lineasLogistica))}</span></div>
+            </div>
+          ) : (
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Personal contratado</span><span>{fmt(sumLineas(lineasPersCont))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Altas / Bajas</span><span>{fmt(sumLineas(lineasPersAB))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Logística</span><span>{fmt(sumLineas(lineasLogistica))}</span></div>
+            </div>
+          )}
+          <div className="border-t pt-3 space-y-1.5 text-sm">
+            <div className="flex justify-between"><span className="text-gray-500">Total bruto</span><span className="font-medium">{fmt(totalBruto)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">IVA ({form.iva_porcentaje}%)</span><span>{fmt(iva)}</span></div>
+            <div className="flex justify-between text-base font-bold"><span>TOTAL</span><span className="text-red-700">{fmt(total)}</span></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Líneas del presupuesto */}
+      <div className="card overflow-hidden mb-4">
+        <div className={`px-6 py-3 border-b border-gray-100 ${isGeneral ? 'bg-red-700' : 'bg-orange-500'}`}>
+          <h2 className="font-bold text-white text-sm">
+            {isGeneral ? 'Presupuesto General' : 'Presupuesto Personal Valencia'}
+          </h2>
+        </div>
+        <div className="p-4 overflow-x-auto">
+
+          {isGeneral ? (
+            <>
+              {/* EQUIPAMIENTO */}
+              <SectionTable title="EQUIPAMIENTO" color="red" onAdd={() => setLineasEquip(p => [...p, emptyLineaGeneral()])}>
+                <table className="w-full text-xs">
+                  <thead><tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="px-2 py-2 text-left text-gray-500">Descripción</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">UDS.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">UNID.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">JORN.</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-28">COSTE JORN.</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-28">IMPORTE</th>
+                    <th className="w-8" />
+                  </tr></thead>
+                  <tbody>
+                    {lineasEquip.map((l, i) => (
+                      <LineaGeneral key={i} linea={l} onChange={u => updateLinea(setLineasEquip, i, u)} onRemove={() => removeLinea(setLineasEquip, i)} />
+                    ))}
+                    {!lineasEquip.length && <tr><td colSpan={7} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                  </tbody>
+                </table>
+              </SectionTable>
+
+              {/* PERSONAL TÉCNICO */}
+              <SectionTable title="PERSONAL TÉCNICO" color="red" onAdd={() => setLineasPersGeneral(p => [...p, emptyLineaGeneral()])}>
+                <table className="w-full text-xs">
+                  <thead><tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="px-2 py-2 text-left text-gray-500">Descripción</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">UDS.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">UNID.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">JORN.</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-28">TARIFA</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-28">IMPORTE</th>
+                    <th className="w-8" />
+                  </tr></thead>
+                  <tbody>
+                    {lineasPersGeneral.map((l, i) => (
+                      <LineaGeneral key={i} linea={l} onChange={u => updateLinea(setLineasPersGeneral, i, u)} onRemove={() => removeLinea(setLineasPersGeneral, i)} />
+                    ))}
+                    {!lineasPersGeneral.length && <tr><td colSpan={7} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                  </tbody>
+                </table>
+              </SectionTable>
+
+              {/* LOGÍSTICA GENERAL */}
+              <SectionTable title="LOGÍSTICA" color="red" onAdd={() => setLineasLogistica(p => [...p, emptyLineaLogisticaGeneral()])}>
+                <table className="w-full text-xs">
+                  <thead><tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="px-2 py-2 text-left text-gray-500">Descripción</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">UDS.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">UNID.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">JORN.</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-28">PRECIO</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-28">IMPORTE</th>
+                    <th className="w-8" />
+                  </tr></thead>
+                  <tbody>
+                    {lineasLogistica.map((l, i) => (
+                      <LineaGeneral key={i} linea={l} onChange={u => updateLinea(setLineasLogistica, i, u)} onRemove={() => removeLinea(setLineasLogistica, i)} />
+                    ))}
+                    {!lineasLogistica.length && <tr><td colSpan={7} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                  </tbody>
+                </table>
+              </SectionTable>
+            </>
+          ) : (
+            <>
+              {/* PERSONAL CONTRATADO */}
+              <SectionTable title="PERSONAL CONTRATADO" color="orange" onAdd={() => setLineasPersCont(p => [...p, emptyLineaPersonal()])}>
+                <table className="w-full text-xs">
+                  <thead><tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="px-2 py-2 text-left text-gray-500">Posición / Descripción</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-24">Tarifa</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">Jorn.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">Nº PAX</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-24">Dieta</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">NºDieta</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-28">Importe</th>
+                    <th className="w-8" />
+                  </tr></thead>
+                  <tbody>
+                    {lineasPersCont.map((l, i) => (
+                      <LineaPersonal key={i} linea={l} onChange={u => updateLinea(setLineasPersCont, i, u)} onRemove={() => removeLinea(setLineasPersCont, i)} />
+                    ))}
+                    {!lineasPersCont.length && <tr><td colSpan={8} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                  </tbody>
+                </table>
+              </SectionTable>
+
+              {/* PERSONAL ALTAS/BAJAS */}
+              <SectionTable title="PERSONAL ALTAS / BAJAS" color="orange" onAdd={() => setLineasPersAB(p => [...p, emptyLineaPersonal()])}>
+                <table className="w-full text-xs">
+                  <thead><tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="px-2 py-2 text-left text-gray-500">Posición / Descripción</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-24">Tarifa</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">Jorn.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">Nº PAX</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-24">Dieta</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-16">NºDieta</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-28">Importe</th>
+                    <th className="w-8" />
+                  </tr></thead>
+                  <tbody>
+                    {lineasPersAB.map((l, i) => (
+                      <LineaPersonal key={i} linea={l} onChange={u => updateLinea(setLineasPersAB, i, u)} onRemove={() => removeLinea(setLineasPersAB, i)} />
+                    ))}
+                    {!lineasPersAB.length && <tr><td colSpan={8} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                  </tbody>
+                </table>
+              </SectionTable>
+
+              {/* LOGÍSTICA PERSONAL */}
+              <SectionTable title="LOGÍSTICA" color="orange" onAdd={() => setLineasLogistica(p => [...p, emptyLineaLogisticaPersonal()])}>
+                <table className="w-full text-xs">
+                  <thead><tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="px-2 py-2 text-left text-gray-500 w-1/2">Descripción</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-24">Cantidad</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-28">Precio</th>
+                    <th className="px-2 py-2 text-right text-gray-500 w-28">Importe</th>
+                    <th className="w-8" />
+                  </tr></thead>
+                  <tbody>
+                    {lineasLogistica.map((l, i) => (
+                      <LineaLogisticaPersonal key={i} linea={l} onChange={u => updateLinea(setLineasLogistica, i, u)} onRemove={() => removeLinea(setLineasLogistica, i)} />
+                    ))}
+                    {!lineasLogistica.length && <tr><td colSpan={5} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                  </tbody>
+                </table>
+              </SectionTable>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Modal envío email */}
+      {showSendModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="card w-full max-w-md p-6 space-y-4">
+            <h2 className="font-semibold text-gray-900">Enviar presupuesto por email</h2>
+            <div>
+              <label className="label">Para *</label>
+              <input className="input" type="email" value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="cliente@email.com" />
+            </div>
+            <div>
+              <label className="label">Mensaje</label>
+              <textarea className="input" rows={3} value={emailMensaje} onChange={e => setEmailMensaje(e.target.value)} placeholder="Texto del email..." />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button className="btn-secondary" onClick={() => setShowSendModal(false)}>Cancelar</button>
+              <button className="btn-primary" onClick={handleSendEmail} disabled={sendLoading || !emailTo}>
+                <Send size={14} /> {sendLoading ? 'Enviando...' : 'Enviar PDF'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
