@@ -1,0 +1,16 @@
+[phases.setup]
+nixPkgs = ["chromium", "nss", "nspr", "atk", "at-spi2-atk", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "libxkbcommon", "mesa", "expat", "dbus", "pango", "cairo", "glib", "cups", "gtk3"]
+
+[variables]
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+PUPPETEER_EXECUTABLE_PATH = "/usr/bin/chromium"
+NODE_ENV = "production"
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "node src/app.js"
