@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const cron = require('node-cron');
 const pool = require('./config/database');
 
@@ -12,7 +13,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Rutas
+// Rutas API
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/responsables', require('./routes/responsables'));
 app.use('/api/clientes', require('./routes/clientes'));
@@ -22,6 +23,13 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+
+// Servir frontend estático
+const frontendDist = path.join(__dirname, '../../../frontend/dist');
+app.use(express.static(frontendDist));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
 
 // Cron: cada noche a las 00:05 — presupuestos APROBADOS con fecha_fin pasada → PENDIENTE_FACTURAR
 cron.schedule('5 0 * * *', async () => {

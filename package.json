@@ -1,9 +1,10 @@
 {
-  "name": "presupuestos-backend",
+  "name": "presupuestos-app",
   "version": "1.0.0",
-  "description": "Backend API para Gestión de Presupuestos CCEE",
+  "description": "Gestión de Presupuestos CCEE",
   "main": "backend/src/app.js",
   "scripts": {
+    "build": "cd frontend && npm install && npm run build",
     "start": "node backend/src/app.js",
     "dev": "nodemon backend/src/app.js",
     "migrate": "node backend/src/config/migrate.js"
