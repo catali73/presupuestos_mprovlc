@@ -396,7 +396,7 @@ async function exportPdf(p) {
         l.coste_jornada != null ? fmt(l.coste_jornada) : '', l.importe != null ? fmt(l.importe) : '',
       ]), cols);
     } else {
-      const cols = [W - 260, 50, 40, 40, 50, 40, 60];
+      const cols = [W - 280, 50, 40, 40, 50, 40, 60];
       const heads = ['PERSONAL', 'TARIFA', 'JORN.', 'Nº PAX', 'DIETA', 'NºDIETA', 'IMPORTE'];
 
       drawSection('PERSONAL CONTRATADO', heads, p.lineas_personal_contratado.map(l => [
