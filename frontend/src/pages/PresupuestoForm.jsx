@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Save, ArrowLeft, Send, Download, ChevronDown } from 'lucide-react';
 import api from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
@@ -13,10 +13,18 @@ const STATUS_LABELS = {
   DESCARTADO: 'Descartado', FACTURADO: 'Facturado', PENDIENTE_FACTURAR: 'Pte. Facturar',
 };
 
-function emptyLineaGeneral() { return { descripcion: '', uds: '', unidades: '', jornadas: '', coste_jornada: '', importe: '' }; }
-function emptyLineaPersonal() { return { descripcion: '', tarifa: '', jornadas: '', num_pax: '', dieta: '', num_dietas: '', importe: '', es_especial: false }; }
-function emptyLineaLogisticaGeneral() { return { descripcion: '', uds: '', unidades: '', jornadas: '', coste_jornada: '', importe: '' }; }
-function emptyLineaLogisticaPersonal() { return { descripcion: '', cantidad: '', precio: '', importe: '' }; }
+function emptyLineaGeneral() {
+  return { descripcion: '', uds: '', unidades: '', jornadas: '', coste_jornada: '', importe: '' };
+}
+function emptyLineaPersonal() {
+  return { descripcion: '', tarifa: '', jornadas: '', num_pax: '', dieta_tipo: '', dieta: '', num_dietas: '', importe: '', es_especial: false };
+}
+function emptyLineaLogisticaGeneral() {
+  return { descripcion: '', uds: '', unidades: '', jornadas: '', coste_jornada: '', importe: '' };
+}
+function emptyLineaLogisticaPersonal() {
+  return { descripcion: '', cantidad: '', precio: '', importe: '' };
+}
 
 function calcImporteGeneral(l) {
   const uds = parseFloat(l.uds) || 1;
@@ -51,9 +59,14 @@ function fmt(v) {
 }
 
 // ─── Fila editable tipo GENERAL ───────────────────────────────────────────────
-function LineaGeneral({ linea, onChange, onRemove, tarifas }) {
+function LineaGeneral({ linea, onChange, onRemove, tarifas = [], listId = '' }) {
   const handleChange = (key, val) => {
     const updated = { ...linea, [key]: val };
+    // Auto-rellenar coste cuando se selecciona del catálogo
+    if (key === 'descripcion' && tarifas.length) {
+      const found = tarifas.find(t => t.label === val);
+      if (found && found.coste != null) updated.coste_jornada = found.coste;
+    }
     updated.importe = calcImporteGeneral(updated);
     onChange(updated);
   };
@@ -62,11 +75,11 @@ function LineaGeneral({ linea, onChange, onRemove, tarifas }) {
     <tr className="border-b border-gray-100 group">
       <td className="px-2 py-1.5">
         <input
-          list="tarifas-equipos-list"
+          list={listId}
           className="input text-xs"
           value={linea.descripcion}
           onChange={e => handleChange('descripcion', e.target.value)}
-          placeholder="Descripción"
+          placeholder="Descripción o seleccionar..."
         />
       </td>
       <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.uds} onChange={e => handleChange('uds', e.target.value)} placeholder="1" /></td>
@@ -84,9 +97,19 @@ function LineaGeneral({ linea, onChange, onRemove, tarifas }) {
 }
 
 // ─── Fila editable tipo PERSONAL ──────────────────────────────────────────────
-function LineaPersonal({ linea, onChange, onRemove }) {
+function LineaPersonal({ linea, onChange, onRemove, tarifasPersonas = [], tarifasDietas = [], listPersonasId = '' }) {
   const handleChange = (key, val) => {
     const updated = { ...linea, [key]: val };
+    // Auto-rellenar tarifa cuando se selecciona posición
+    if (key === 'descripcion' && tarifasPersonas.length) {
+      const found = tarifasPersonas.find(t => t.posicion === val);
+      if (found) updated.tarifa = found.tarifa_dia;
+    }
+    // Auto-rellenar importe dieta cuando se selecciona tipo
+    if (key === 'dieta_tipo') {
+      const found = tarifasDietas.find(t => t.tipo_dieta === val);
+      if (found) updated.dieta = found.importe;
+    }
     updated.importe = calcImportePersonal(updated);
     onChange(updated);
   };
@@ -94,14 +117,50 @@ function LineaPersonal({ linea, onChange, onRemove }) {
   return (
     <tr className="border-b border-gray-100 group">
       <td className="px-2 py-1.5">
-        <input className="input text-xs" value={linea.descripcion} onChange={e => handleChange('descripcion', e.target.value)} placeholder="Posición / descripción" />
+        <input
+          list={listPersonasId}
+          className="input text-xs"
+          value={linea.descripcion}
+          onChange={e => handleChange('descripcion', e.target.value)}
+          placeholder="Posición / seleccionar..."
+        />
       </td>
-      <td className="px-2 py-1.5 w-24"><input className="input text-xs text-right" type="number" value={linea.tarifa} onChange={e => handleChange('tarifa', e.target.value)} /></td>
-      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} /></td>
-      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.num_pax} onChange={e => handleChange('num_pax', e.target.value)} /></td>
-      <td className="px-2 py-1.5 w-24"><input className="input text-xs text-right" type="number" value={linea.dieta} onChange={e => handleChange('dieta', e.target.value)} /></td>
-      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.num_dietas} onChange={e => handleChange('num_dietas', e.target.value)} /></td>
-      <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right bg-gray-50" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-24">
+        <input className="input text-xs text-right" type="number" value={linea.tarifa} onChange={e => handleChange('tarifa', e.target.value)} />
+      </td>
+      <td className="px-2 py-1.5 w-16">
+        <input className="input text-xs text-center" type="number" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} />
+      </td>
+      <td className="px-2 py-1.5 w-16">
+        <input className="input text-xs text-center" type="number" value={linea.num_pax} onChange={e => handleChange('num_pax', e.target.value)} />
+      </td>
+      <td className="px-2 py-1.5 w-36">
+        <div className="flex gap-1">
+          <select
+            className="select text-xs flex-1 min-w-0"
+            value={linea.dieta_tipo || ''}
+            onChange={e => handleChange('dieta_tipo', e.target.value)}
+          >
+            <option value="">Sin dieta</option>
+            {tarifasDietas.map(t => (
+              <option key={t.id} value={t.tipo_dieta}>{t.tipo_dieta}</option>
+            ))}
+          </select>
+          <input
+            className="input text-xs text-right w-20"
+            type="number"
+            value={linea.dieta}
+            onChange={e => handleChange('dieta', e.target.value)}
+            placeholder="€"
+          />
+        </div>
+      </td>
+      <td className="px-2 py-1.5 w-16">
+        <input className="input text-xs text-center" type="number" value={linea.num_dietas} onChange={e => handleChange('num_dietas', e.target.value)} />
+      </td>
+      <td className="px-2 py-1.5 w-28">
+        <input className="input text-xs text-right bg-gray-50" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} />
+      </td>
       <td className="px-2 py-1.5 w-8">
         <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
           <Trash2 size={13} />
@@ -173,10 +232,14 @@ export default function PresupuestoForm() {
   const [emailMensaje, setEmailMensaje] = useState('');
   const [saving, setSaving] = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
+  const [templateCargada, setTemplateCargada] = useState(false);
 
   // Cargar datos maestros
   const { data: clientes = [] } = useQuery({ queryKey: ['clientes'], queryFn: () => api.get('/clientes').then(r => r.data) });
   const { data: responsables = [] } = useQuery({ queryKey: ['responsables'], queryFn: () => api.get('/responsables').then(r => r.data) });
+  const { data: tarifasEquipos = [] } = useQuery({ queryKey: ['tarifas-equipos'], queryFn: () => api.get('/tarifas/equipos').then(r => r.data) });
+  const { data: tarifasPersonas = [] } = useQuery({ queryKey: ['tarifas-personas'], queryFn: () => api.get('/tarifas/personas').then(r => r.data) });
+  const { data: tarifasDietas = [] } = useQuery({ queryKey: ['tarifas-dietas'], queryFn: () => api.get('/tarifas/dietas').then(r => r.data) });
 
   // Cargar presupuesto existente
   const { data: presupuesto } = useQuery({
@@ -210,6 +273,23 @@ export default function PresupuestoForm() {
       setLineasPersAB(presupuesto.lineas_personal_altas_bajas || []);
     }
   }, [presupuesto]);
+
+  // ─── Plantilla automática para presupuestos PERSONAL nuevos ─────────────────
+  useEffect(() => {
+    if (!isNew || tipo !== 'PERSONAL' || templateCargada || tarifasPersonas.length === 0) return;
+
+    const contratados = tarifasPersonas
+      .filter(t => t.categoria === 'CONTRATADO')
+      .map(t => ({ ...emptyLineaPersonal(), descripcion: t.posicion, tarifa: t.tarifa_dia || '' }));
+
+    const altasBajas = tarifasPersonas
+      .filter(t => t.categoria === 'ALTAS_BAJAS')
+      .map(t => ({ ...emptyLineaPersonal(), descripcion: t.posicion, tarifa: t.tarifa_dia || '' }));
+
+    if (contratados.length > 0) setLineasPersCont(contratados);
+    if (altasBajas.length > 0) setLineasPersAB(altasBajas);
+    setTemplateCargada(true);
+  }, [isNew, tipo, tarifasPersonas, templateCargada]);
 
   const clienteSeleccionado = clientes.find(c => c.id == form.cliente_id);
   const contactos = clienteSeleccionado?.contactos || [];
@@ -287,8 +367,29 @@ export default function PresupuestoForm() {
   const updateLinea = (setter, idx, updated) => setter(prev => prev.map((l, i) => i === idx ? updated : l));
   const removeLinea = (setter, idx) => setter(prev => prev.filter((_, i) => i !== idx));
 
+  // Tarifas preparadas para cada sección
+  const tarifasEquiposMapped = tarifasEquipos.map(t => ({ label: t.descripcion, coste: t.tarifa_trabajo }));
+  const tarifasCamaras = tarifasPersonas.filter(t => t.categoria === 'CAMARAS_ESPECIALES');
+  const tarifasCamarasMapped = tarifasCamaras.map(t => ({ label: t.posicion, coste: t.tarifa_dia }));
+  const tarifasContratado = tarifasPersonas.filter(t => t.categoria === 'CONTRATADO');
+  const tarifasAltasBajas = tarifasPersonas.filter(t => t.categoria === 'ALTAS_BAJAS');
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      {/* Datalists para autocompletar */}
+      <datalist id="equipos-list">
+        {tarifasEquipos.map(t => <option key={t.id} value={t.descripcion} />)}
+      </datalist>
+      <datalist id="personas-camaras-list">
+        {tarifasCamaras.map(t => <option key={t.id} value={t.posicion} />)}
+      </datalist>
+      <datalist id="personas-cont-list">
+        {tarifasContratado.map(t => <option key={t.id} value={t.posicion} />)}
+      </datalist>
+      <datalist id="personas-ab-list">
+        {tarifasAltasBajas.map(t => <option key={t.id} value={t.posicion} />)}
+      </datalist>
+
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => navigate('/presupuestos')} className="btn-ghost p-2">
@@ -439,7 +540,7 @@ export default function PresupuestoForm() {
           {isGeneral ? (
             <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-gray-500">Equipamiento</span><span>{fmt(sumLineas(lineasEquip))}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Personal técnico</span><span>{fmt(sumLineas(lineasPersGeneral))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Personal Cámaras Esp.</span><span>{fmt(sumLineas(lineasPersGeneral))}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Logística</span><span>{fmt(sumLineas(lineasLogistica))}</span></div>
             </div>
           ) : (
@@ -482,18 +583,23 @@ export default function PresupuestoForm() {
                   </tr></thead>
                   <tbody>
                     {lineasEquip.map((l, i) => (
-                      <LineaGeneral key={i} linea={l} onChange={u => updateLinea(setLineasEquip, i, u)} onRemove={() => removeLinea(setLineasEquip, i)} />
+                      <LineaGeneral key={i} linea={l}
+                        onChange={u => updateLinea(setLineasEquip, i, u)}
+                        onRemove={() => removeLinea(setLineasEquip, i)}
+                        tarifas={tarifasEquiposMapped}
+                        listId="equipos-list"
+                      />
                     ))}
-                    {!lineasEquip.length && <tr><td colSpan={7} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                    {!lineasEquip.length && <tr><td colSpan={7} className="text-center text-gray-400 py-4 text-xs">Sin líneas — pulsa "Añadir línea"</td></tr>}
                   </tbody>
                 </table>
               </SectionTable>
 
-              {/* PERSONAL TÉCNICO */}
-              <SectionTable title="PERSONAL TÉCNICO" color="red" onAdd={() => setLineasPersGeneral(p => [...p, emptyLineaGeneral()])}>
+              {/* PERSONAL CÁMARAS ESPECIALES */}
+              <SectionTable title="PERSONAL CÁMARAS ESPECIALES" color="red" onAdd={() => setLineasPersGeneral(p => [...p, emptyLineaGeneral()])}>
                 <table className="w-full text-xs">
                   <thead><tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="px-2 py-2 text-left text-gray-500">Descripción</th>
+                    <th className="px-2 py-2 text-left text-gray-500">Posición / Descripción</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">UDS.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">UNID.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">JORN.</th>
@@ -503,9 +609,14 @@ export default function PresupuestoForm() {
                   </tr></thead>
                   <tbody>
                     {lineasPersGeneral.map((l, i) => (
-                      <LineaGeneral key={i} linea={l} onChange={u => updateLinea(setLineasPersGeneral, i, u)} onRemove={() => removeLinea(setLineasPersGeneral, i)} />
+                      <LineaGeneral key={i} linea={l}
+                        onChange={u => updateLinea(setLineasPersGeneral, i, u)}
+                        onRemove={() => removeLinea(setLineasPersGeneral, i)}
+                        tarifas={tarifasCamarasMapped}
+                        listId="personas-camaras-list"
+                      />
                     ))}
-                    {!lineasPersGeneral.length && <tr><td colSpan={7} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                    {!lineasPersGeneral.length && <tr><td colSpan={7} className="text-center text-gray-400 py-4 text-xs">Sin líneas — pulsa "Añadir línea"</td></tr>}
                   </tbody>
                 </table>
               </SectionTable>
@@ -524,9 +635,12 @@ export default function PresupuestoForm() {
                   </tr></thead>
                   <tbody>
                     {lineasLogistica.map((l, i) => (
-                      <LineaGeneral key={i} linea={l} onChange={u => updateLinea(setLineasLogistica, i, u)} onRemove={() => removeLinea(setLineasLogistica, i)} />
+                      <LineaGeneral key={i} linea={l}
+                        onChange={u => updateLinea(setLineasLogistica, i, u)}
+                        onRemove={() => removeLinea(setLineasLogistica, i)}
+                      />
                     ))}
-                    {!lineasLogistica.length && <tr><td colSpan={7} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                    {!lineasLogistica.length && <tr><td colSpan={7} className="text-center text-gray-400 py-4 text-xs">Sin líneas — pulsa "Añadir línea"</td></tr>}
                   </tbody>
                 </table>
               </SectionTable>
@@ -541,16 +655,22 @@ export default function PresupuestoForm() {
                     <th className="px-2 py-2 text-right text-gray-500 w-24">Tarifa</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">Jorn.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">Nº PAX</th>
-                    <th className="px-2 py-2 text-right text-gray-500 w-24">Dieta</th>
+                    <th className="px-2 py-2 text-left text-gray-500 w-36">Dieta</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">NºDieta</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-28">Importe</th>
                     <th className="w-8" />
                   </tr></thead>
                   <tbody>
                     {lineasPersCont.map((l, i) => (
-                      <LineaPersonal key={i} linea={l} onChange={u => updateLinea(setLineasPersCont, i, u)} onRemove={() => removeLinea(setLineasPersCont, i)} />
+                      <LineaPersonal key={i} linea={l}
+                        onChange={u => updateLinea(setLineasPersCont, i, u)}
+                        onRemove={() => removeLinea(setLineasPersCont, i)}
+                        tarifasPersonas={tarifasContratado}
+                        tarifasDietas={tarifasDietas}
+                        listPersonasId="personas-cont-list"
+                      />
                     ))}
-                    {!lineasPersCont.length && <tr><td colSpan={8} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                    {!lineasPersCont.length && <tr><td colSpan={8} className="text-center text-gray-400 py-4 text-xs">Sin líneas — pulsa "Añadir línea"</td></tr>}
                   </tbody>
                 </table>
               </SectionTable>
@@ -563,16 +683,22 @@ export default function PresupuestoForm() {
                     <th className="px-2 py-2 text-right text-gray-500 w-24">Tarifa</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">Jorn.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">Nº PAX</th>
-                    <th className="px-2 py-2 text-right text-gray-500 w-24">Dieta</th>
+                    <th className="px-2 py-2 text-left text-gray-500 w-36">Dieta</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">NºDieta</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-28">Importe</th>
                     <th className="w-8" />
                   </tr></thead>
                   <tbody>
                     {lineasPersAB.map((l, i) => (
-                      <LineaPersonal key={i} linea={l} onChange={u => updateLinea(setLineasPersAB, i, u)} onRemove={() => removeLinea(setLineasPersAB, i)} />
+                      <LineaPersonal key={i} linea={l}
+                        onChange={u => updateLinea(setLineasPersAB, i, u)}
+                        onRemove={() => removeLinea(setLineasPersAB, i)}
+                        tarifasPersonas={tarifasAltasBajas}
+                        tarifasDietas={tarifasDietas}
+                        listPersonasId="personas-ab-list"
+                      />
                     ))}
-                    {!lineasPersAB.length && <tr><td colSpan={8} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                    {!lineasPersAB.length && <tr><td colSpan={8} className="text-center text-gray-400 py-4 text-xs">Sin líneas — pulsa "Añadir línea"</td></tr>}
                   </tbody>
                 </table>
               </SectionTable>
@@ -589,9 +715,12 @@ export default function PresupuestoForm() {
                   </tr></thead>
                   <tbody>
                     {lineasLogistica.map((l, i) => (
-                      <LineaLogisticaPersonal key={i} linea={l} onChange={u => updateLinea(setLineasLogistica, i, u)} onRemove={() => removeLinea(setLineasLogistica, i)} />
+                      <LineaLogisticaPersonal key={i} linea={l}
+                        onChange={u => updateLinea(setLineasLogistica, i, u)}
+                        onRemove={() => removeLinea(setLineasLogistica, i)}
+                      />
                     ))}
-                    {!lineasLogistica.length && <tr><td colSpan={5} className="text-center text-gray-400 py-4 text-xs">Sin líneas</td></tr>}
+                    {!lineasLogistica.length && <tr><td colSpan={5} className="text-center text-gray-400 py-4 text-xs">Sin líneas — pulsa "Añadir línea"</td></tr>}
                   </tbody>
                 </table>
               </SectionTable>

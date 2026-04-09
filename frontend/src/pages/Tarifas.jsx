@@ -94,6 +94,18 @@ function TarifaTable({ titulo, queryKey, endpoint, columns, emptyForm, renderRow
   );
 }
 
+const CATEGORIA_LABELS = {
+  CAMARAS_ESPECIALES: 'Cámaras Especiales',
+  CONTRATADO: 'Personal Contratado',
+  ALTAS_BAJAS: 'Altas / Bajas',
+};
+
+const CATEGORIA_COLORS = {
+  CAMARAS_ESPECIALES: 'bg-red-100 text-red-800',
+  CONTRATADO: 'bg-orange-100 text-orange-800',
+  ALTAS_BAJAS: 'bg-blue-100 text-blue-800',
+};
+
 function fmtMoney(v) { return v != null ? `${parseFloat(v).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €` : '—'; }
 
 export default function Tarifas() {
@@ -143,12 +155,17 @@ export default function Tarifas() {
         titulo="Tarifa Personas (por posición)"
         queryKey="tarifas-personas"
         endpoint="/tarifas/personas"
-        emptyForm={{ posicion: '', tarifa_dia: '' }}
-        columns={['Posición', 'Tarifa día']}
+        emptyForm={{ posicion: '', tarifa_dia: '', categoria: 'CONTRATADO' }}
+        columns={['Posición', 'Tarifa día', 'Tipología']}
         renderRow={row => (
           <>
             <td className="table-td font-medium">{row.posicion}</td>
             <td className="table-td">{fmtMoney(row.tarifa_dia)}</td>
+            <td className="table-td">
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${CATEGORIA_COLORS[row.categoria] || 'bg-gray-100 text-gray-600'}`}>
+                {CATEGORIA_LABELS[row.categoria] || row.categoria || '—'}
+              </span>
+            </td>
           </>
         )}
         FormFields={({ form, setForm }) => (
@@ -160,6 +177,14 @@ export default function Tarifas() {
             <div>
               <label className="label">Tarifa día *</label>
               <input className="input" type="number" value={form.tarifa_dia} onChange={e => setForm(f => ({ ...f, tarifa_dia: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Tipología *</label>
+              <select className="select" value={form.categoria || 'CONTRATADO'} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}>
+                <option value="CAMARAS_ESPECIALES">Cámaras Especiales (→ Presup. General)</option>
+                <option value="CONTRATADO">Personal Contratado (→ Presup. Personal)</option>
+                <option value="ALTAS_BAJAS">Altas / Bajas (→ Presup. Personal)</option>
+              </select>
             </div>
           </>
         )}

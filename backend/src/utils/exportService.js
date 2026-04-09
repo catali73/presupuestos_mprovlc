@@ -324,36 +324,51 @@ async function exportPdf(p) {
 
     // ─── Función para dibujar sección ───────────────────────────────────────
     function drawSection(titulo, headers, rows, colWidths) {
+      // Salto de página si no cabe el bloque mínimo
+      if (y > doc.page.height - 120) { doc.addPage(); y = 40; }
+
       // Título sección
-      doc.fillColor(headerColor).rect(40, y, W, 16).fill();
-      doc.fillColor('white').font('Helvetica-Bold').fontSize(8).text(titulo, 44, y + 4);
-      y += 16;
+      doc.fillColor(headerColor).rect(40, y, W, 18).fill();
+      doc.fillColor('white').font('Helvetica-Bold').fontSize(9).text(titulo, 44, y + 5);
+      y += 18;
 
       // Cabecera columnas
-      doc.fillColor([240, 240, 240]).rect(40, y, W, 14).fill();
+      doc.fillColor([235, 235, 235]).rect(40, y, W, 14).fill();
       let x = 40;
       doc.fillColor('#444').font('Helvetica-Bold').fontSize(7);
       headers.forEach((h, i) => {
-        doc.text(h, x + 2, y + 3, { width: colWidths[i], align: i === 0 ? 'left' : 'right' });
+        doc.text(h, x + 2, y + 4, { width: colWidths[i] - 4, align: i === 0 ? 'left' : 'right' });
         x += colWidths[i];
       });
       y += 14;
 
-      // Filas
-      rows.forEach((row, ri) => {
-        if (y > doc.page.height - 100) { doc.addPage(); y = 40; }
-        if (ri % 2 === 0) {
-          doc.fillColor([250, 250, 250]).rect(40, y, W, 13).fill();
-        }
-        doc.fillColor('#333').font('Helvetica').fontSize(7);
-        x = 40;
-        row.forEach((cell, i) => {
-          doc.text(String(cell ?? ''), x + 2, y + 3, { width: colWidths[i] - 4, align: i === 0 ? 'left' : 'right' });
-          x += colWidths[i];
-        });
+      // Filas de datos
+      if (rows.length === 0) {
+        // Sección vacía — mostrar fila indicativa
+        doc.fillColor([250, 250, 250]).rect(40, y, W, 13).fill();
+        doc.fillColor('#aaa').font('Helvetica').fontSize(7).text('Sin líneas', 44, y + 3);
         y += 13;
-      });
-      y += 4;
+      } else {
+        rows.forEach((row, ri) => {
+          if (y > doc.page.height - 80) { doc.addPage(); y = 40; }
+          if (ri % 2 === 0) {
+            doc.fillColor([250, 250, 250]).rect(40, y, W, 13).fill();
+          } else {
+            doc.fillColor('white').rect(40, y, W, 13).fill();
+          }
+          doc.fillColor('#333').font('Helvetica').fontSize(7);
+          x = 40;
+          row.forEach((cell, i) => {
+            doc.text(String(cell ?? ''), x + 2, y + 3, { width: colWidths[i] - 4, align: i === 0 ? 'left' : 'right' });
+            x += colWidths[i];
+          });
+          y += 13;
+        });
+      }
+
+      // Línea separadora y espacio entre secciones
+      doc.strokeColor('#ddd').lineWidth(0.5).moveTo(40, y).lineTo(40 + W, y).stroke();
+      y += 10;
     }
 
     if (isGeneral) {
