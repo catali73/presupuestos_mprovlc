@@ -1,0 +1,5 @@
+[build]
+buildCommand = "npm run build"
+
+[deploy]
+startCommand = "node backend/src/app.js"
