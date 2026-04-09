@@ -110,6 +110,12 @@ function LineaPersonal({ linea, onChange, onRemove, tarifasPersonas = [], tarifa
       const found = tarifasDietas.find(t => t.tipo_dieta === val);
       if (found) updated.dieta = found.importe;
     }
+    // Auto-calcular nº dietas = jornadas × nº pax
+    if (key === 'jornadas' || key === 'num_pax') {
+      const j = parseFloat(key === 'jornadas' ? val : linea.jornadas) || 0;
+      const p = parseFloat(key === 'num_pax' ? val : linea.num_pax) || 0;
+      if (j && p) updated.num_dietas = j * p;
+    }
     updated.importe = calcImportePersonal(updated);
     onChange(updated);
   };
@@ -156,7 +162,7 @@ function LineaPersonal({ linea, onChange, onRemove, tarifasPersonas = [], tarifa
         </div>
       </td>
       <td className="px-2 py-1.5 w-14">
-        <input className="input text-xs text-center w-full" type="number" value={linea.num_dietas} onChange={e => handleChange('num_dietas', e.target.value)} />
+        <input className="input text-xs text-center w-full bg-gray-50" type="number" value={linea.num_dietas} onChange={e => handleChange('num_dietas', e.target.value)} readOnly title="Calculado: jornadas × nº pax" />
       </td>
       <td className="px-2 py-1.5 w-24">
         <input className="input text-xs text-right bg-gray-50 w-full" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} />
