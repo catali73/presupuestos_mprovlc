@@ -264,183 +264,158 @@ function calcTotalPersonal(p) {
   return sum(p.lineas_personal_contratado) + sum(p.lineas_personal_altas_bajas) + sum(p.lineas_logistica);
 }
 
-// ─── EXPORT PDF (HTML → Puppeteer) ───────────────────────────────────────────
+// ─── EXPORT PDF (pdfkit — sin dependencias del sistema) ──────────────────────
 
 async function exportPdf(p) {
-  const puppeteer = require('puppeteer');
-  const html = buildHtml(p);
-
-  const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  const buffer = await page.pdf({
-    format: 'A4',
-    printBackground: true,
-    margin: { top: '15mm', bottom: '15mm', left: '12mm', right: '12mm' },
-  });
-  await browser.close();
-  return buffer;
-}
-
-function buildHtml(p) {
+  const PDFDocument = require('pdfkit');
   const isGeneral = p.tipo === 'GENERAL';
+  const headerColor = isGeneral ? [192, 0, 0] : [237, 125, 49];
   const fechaStr = p.fecha_presupuesto ? new Date(p.fecha_presupuesto).toLocaleDateString('es-ES') : '';
   const totalBruto = isGeneral ? calcTotalGeneral(p) : calcTotalPersonal(p);
-  const iva = totalBruto * (p.iva_porcentaje / 100);
+  const iva = totalBruto * (parseFloat(p.iva_porcentaje) / 100);
   const total = totalBruto + iva;
-  const fmt = (v) => v != null ? parseFloat(v).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '';
+  const fmt = (v) => v != null && v !== '' ? parseFloat(v).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '';
 
-  const headerColor = isGeneral ? '#C00000' : '#ED7D31';
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    const chunks = [];
+    doc.on('data', c => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
 
-  const styles = `
-    body { font-family: Arial, sans-serif; font-size: 9pt; color: #333; }
-    h3 { margin: 0; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    th { background: ${headerColor}; color: white; padding: 4px 6px; text-align: center; font-size: 8pt; }
-    td { padding: 3px 6px; border-bottom: 1px solid #eee; }
-    .section-row td { background: ${headerColor}; color: white; font-weight: bold; padding: 3px 6px; }
-    .total-row td { background: #f2f2f2; font-weight: bold; border-top: 2px solid #999; }
-    .right { text-align: right; }
-    .center { text-align: center; }
-    .meta { display: flex; justify-content: space-between; margin-bottom: 12px; }
-    .meta-left p { margin: 2px 0; }
-    .meta-right { text-align: right; }
-    .meta-right p { margin: 2px 0; }
-    .footer { margin-top: 20px; font-size: 8pt; color: #666; border-top: 1px solid #ccc; padding-top: 6px; }
-  `;
+    const W = doc.page.width - 80; // ancho útil
 
-  const metaBlock = `
-    <div class="meta">
-      <div class="meta-left">
-        <p><strong>CLIENTE:</strong> ${p.cliente?.nombre || ''}</p>
-        <p><strong>${isGeneral ? 'PROYECTO' : 'PROYECTO'}:</strong> ${p.evento || ''}</p>
-        ${p.competicion ? `<p><strong>COMPETICIÓN:</strong> ${p.competicion}</p>` : ''}
-        ${p.localizacion ? `<p><strong>LOCALIZACIÓN:</strong> ${p.localizacion}</p>` : ''}
-      </div>
-      <div class="meta-right">
-        <p><strong>${isGeneral ? 'PRESUPUESTO' : 'ALBARÁN'}:</strong> ${p.numero}</p>
-        <p><strong>FECHA:</strong> ${fechaStr}</p>
-        <p><strong>${isGeneral ? 'SOLICITADO' : 'PETICIÓN'}:</strong> ${p.contacto?.nombre || ''}</p>
-      </div>
-    </div>
-  `;
+    // ─── Cabecera ───────────────────────────────────────────────────────────
+    doc.fontSize(14).font('Helvetica-Bold').text('CCEE — Gestión Presupuestos', 40, 40);
+    doc.fontSize(8).font('Helvetica').fillColor('#666')
+      .text(`${EMPRESA.nombre} · ${EMPRESA.cif} · ${EMPRESA.localidad}`, 40, 58);
 
-  let tableHtml = '';
+    // Caja roja/naranja con número y fecha
+    doc.fillColor(headerColor).rect(40, 72, W, 22).fill();
+    doc.fillColor('white').font('Helvetica-Bold').fontSize(10)
+      .text(`${isGeneral ? 'PRESUPUESTO' : 'ALBARÁN'}: ${p.numero}`, 45, 77)
+      .text(`FECHA: ${fechaStr}`, 350, 77);
 
-  if (isGeneral) {
-    tableHtml = `
-      <table>
-        <thead>
-          <tr>
-            <th style="text-align:left;width:50%">DESCRIPCIÓN</th>
-            <th>UDS.</th><th>UNID.</th><th>JORN.</th>
-            <th class="right">COSTE JORNADA</th>
-            <th class="right">IMPORTE</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${buildSectionGeneral('EQUIPAMIENTO', p.lineas_equipamiento, fmt)}
-          ${buildSectionGeneral('PERSONAL TÉCNICO', p.lineas_personal_general, fmt)}
-          ${buildSectionLogisticaGeneral(p.lineas_logistica, fmt)}
-        </tbody>
-      </table>
-    `;
-  } else {
-    tableHtml = `
-      <table>
-        <thead>
-          <tr>
-            <th style="text-align:left;width:40%">PERSONAL</th>
-            <th class="right">TARIFA</th><th>JORNADAS</th>
-            <th>Nº PAX</th><th class="right">DIETA</th>
-            <th>NºDIETA</th><th class="right">IMPORTE</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${buildSectionPersonal('PERSONAL CONTRATADO', p.lineas_personal_contratado, fmt)}
-          ${buildSectionPersonal('PERSONAL ALTAS/ BAJAS', p.lineas_personal_altas_bajas, fmt)}
-          ${buildSectionLogisticaPersonal(p.lineas_logistica, fmt)}
-        </tbody>
-      </table>
-    `;
-  }
+    // Datos generales
+    let y = 105;
+    doc.fillColor('#333').font('Helvetica-Bold').fontSize(8).text('CLIENTE:', 40, y);
+    doc.font('Helvetica').text(p.cliente?.nombre || '—', 100, y);
+    doc.font('Helvetica-Bold').text(isGeneral ? 'SOLICITADO:' : 'PETICIÓN:', 350, y);
+    doc.font('Helvetica').text(p.contacto?.nombre || '—', 430, y);
+    y += 14;
+    doc.font('Helvetica-Bold').text('EVENTO:', 40, y);
+    doc.font('Helvetica').text(p.evento || '—', 100, y);
+    if (!isGeneral && p.competicion) {
+      doc.font('Helvetica-Bold').text('COMPET.:', 350, y);
+      doc.font('Helvetica').text(p.competicion, 430, y);
+    }
+    y += 14;
+    if (p.localizacion) {
+      doc.font('Helvetica-Bold').text('LOCALIZ.:', 40, y);
+      doc.font('Helvetica').text(p.localizacion, 100, y);
+    }
+    if (p.fecha_inicio || p.fecha_fin) {
+      doc.font('Helvetica-Bold').text('FECHAS:', 350, y);
+      const fi = p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString('es-ES') : '';
+      const ff = p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString('es-ES') : '';
+      doc.font('Helvetica').text(`${fi}${fi && ff ? ' → ' : ''}${ff}`, 430, y);
+    }
+    y += 20;
 
-  const totalesHtml = `
-    <table style="width:40%;margin-left:auto">
-      <tbody>
-        <tr class="total-row"><td>TOTAL PRESUPUESTO</td><td class="right">${fmt(totalBruto)}</td></tr>
-        <tr><td>IVA (${p.iva_porcentaje}%)</td><td class="right">${fmt(iva)}</td></tr>
-        <tr class="total-row"><td><strong>TOTAL</strong></td><td class="right"><strong>${fmt(total)}</strong></td></tr>
-      </tbody>
-    </table>
-  `;
+    // ─── Función para dibujar sección ───────────────────────────────────────
+    function drawSection(titulo, headers, rows, colWidths) {
+      // Título sección
+      doc.fillColor(headerColor).rect(40, y, W, 16).fill();
+      doc.fillColor('white').font('Helvetica-Bold').fontSize(8).text(titulo, 44, y + 4);
+      y += 16;
 
-  const footerHtml = `
-    <div class="footer">
-      ${EMPRESA.nombre} · ${EMPRESA.cif} · ${EMPRESA.oficina} · ${EMPRESA.direccion} · ${EMPRESA.localidad}
-    </div>
-  `;
+      // Cabecera columnas
+      doc.fillColor([240, 240, 240]).rect(40, y, W, 14).fill();
+      let x = 40;
+      doc.fillColor('#444').font('Helvetica-Bold').fontSize(7);
+      headers.forEach((h, i) => {
+        doc.text(h, x + 2, y + 3, { width: colWidths[i], align: i === 0 ? 'left' : 'right' });
+        x += colWidths[i];
+      });
+      y += 14;
 
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${styles}</style></head>
-    <body>${metaBlock}${tableHtml}${totalesHtml}${footerHtml}</body></html>`;
-}
+      // Filas
+      rows.forEach((row, ri) => {
+        if (y > doc.page.height - 100) { doc.addPage(); y = 40; }
+        if (ri % 2 === 0) {
+          doc.fillColor([250, 250, 250]).rect(40, y, W, 13).fill();
+        }
+        doc.fillColor('#333').font('Helvetica').fontSize(7);
+        x = 40;
+        row.forEach((cell, i) => {
+          doc.text(String(cell ?? ''), x + 2, y + 3, { width: colWidths[i] - 4, align: i === 0 ? 'left' : 'right' });
+          x += colWidths[i];
+        });
+        y += 13;
+      });
+      y += 4;
+    }
 
-function buildSectionGeneral(titulo, lineas, fmt) {
-  const rows = lineas.map(l => `
-    <tr>
-      <td>${l.descripcion}</td>
-      <td class="center">${l.uds || ''}</td>
-      <td class="center">${l.unidades || ''}</td>
-      <td class="center">${l.jornadas || ''}</td>
-      <td class="right">${l.coste_jornada != null ? fmt(l.coste_jornada) : ''}</td>
-      <td class="right">${l.importe != null ? fmt(l.importe) : ''}</td>
-    </tr>
-  `).join('');
-  return `<tr class="section-row"><td colspan="6">${titulo}</td></tr>${rows}`;
-}
+    if (isGeneral) {
+      const cols = [W - 240, 40, 40, 40, 60, 60];
+      const heads = ['DESCRIPCIÓN', 'UDS.', 'UNID.', 'JORN.', 'COSTE JORN.', 'IMPORTE'];
 
-function buildSectionLogisticaGeneral(lineas, fmt) {
-  const rows = lineas.map(l => `
-    <tr>
-      <td>${l.descripcion}</td>
-      <td class="center">${l.uds || ''}</td>
-      <td class="center">${l.unidades || ''}</td>
-      <td class="center">${l.jornadas || ''}</td>
-      <td class="right">${l.coste_jornada != null ? fmt(l.coste_jornada) : ''}</td>
-      <td class="right">${l.importe != null ? fmt(l.importe) : ''}</td>
-    </tr>
-  `).join('');
-  return `<tr class="section-row"><td colspan="6">LOGÍSTICA</td></tr>${rows}`;
-}
+      drawSection('EQUIPAMIENTO', heads, p.lineas_equipamiento.map(l => [
+        l.descripcion, l.uds || '', l.unidades || '', l.jornadas || '',
+        l.coste_jornada != null ? fmt(l.coste_jornada) : '', l.importe != null ? fmt(l.importe) : '',
+      ]), cols);
 
-function buildSectionPersonal(titulo, lineas, fmt) {
-  const rows = lineas.map(l => `
-    <tr>
-      <td>${l.descripcion}</td>
-      <td class="right">${l.tarifa != null ? fmt(l.tarifa) : ''}</td>
-      <td class="center">${l.jornadas || ''}</td>
-      <td class="center">${l.num_pax || ''}</td>
-      <td class="right">${l.dieta != null ? fmt(l.dieta) : ''}</td>
-      <td class="center">${l.num_dietas || ''}</td>
-      <td class="right">${l.importe != null ? fmt(l.importe) : ''}</td>
-    </tr>
-  `).join('');
-  return `<tr class="section-row"><td colspan="7">${titulo}</td></tr>${rows}`;
-}
+      drawSection('PERSONAL TÉCNICO', heads, p.lineas_personal_general.map(l => [
+        l.descripcion, l.uds || '', l.unidades || '', l.jornadas || '',
+        l.coste_jornada != null ? fmt(l.coste_jornada) : '', l.importe != null ? fmt(l.importe) : '',
+      ]), cols);
 
-function buildSectionLogisticaPersonal(lineas, fmt) {
-  const rows = lineas.map(l => `
-    <tr>
-      <td>${l.descripcion}</td>
-      <td></td>
-      <td></td>
-      <td class="center">${l.cantidad || ''}</td>
-      <td></td>
-      <td class="right">${l.precio != null ? fmt(l.precio) : ''}</td>
-      <td class="right">${l.importe != null ? fmt(l.importe) : ''}</td>
-    </tr>
-  `).join('');
-  return `<tr class="section-row"><td colspan="7">LOGÍSTICA</td></tr>${rows}`;
+      drawSection('LOGÍSTICA', heads, p.lineas_logistica.map(l => [
+        l.descripcion, l.uds || '', l.unidades || '', l.jornadas || '',
+        l.coste_jornada != null ? fmt(l.coste_jornada) : '', l.importe != null ? fmt(l.importe) : '',
+      ]), cols);
+    } else {
+      const cols = [W - 260, 50, 40, 40, 50, 40, 60];
+      const heads = ['PERSONAL', 'TARIFA', 'JORN.', 'Nº PAX', 'DIETA', 'NºDIETA', 'IMPORTE'];
+
+      drawSection('PERSONAL CONTRATADO', heads, p.lineas_personal_contratado.map(l => [
+        l.descripcion, l.tarifa != null ? fmt(l.tarifa) : '', l.jornadas || '', l.num_pax || '',
+        l.dieta != null ? fmt(l.dieta) : '', l.num_dietas || '', l.importe != null ? fmt(l.importe) : '',
+      ]), cols);
+
+      drawSection('PERSONAL ALTAS / BAJAS', heads, p.lineas_personal_altas_bajas.map(l => [
+        l.descripcion, l.tarifa != null ? fmt(l.tarifa) : '', l.jornadas || '', l.num_pax || '',
+        l.dieta != null ? fmt(l.dieta) : '', l.num_dietas || '', l.importe != null ? fmt(l.importe) : '',
+      ]), cols);
+
+      const colsLog = [W - 160, 50, 50, 60];
+      drawSection('LOGÍSTICA', ['DESCRIPCIÓN', 'CANTIDAD', 'PRECIO', 'IMPORTE'], p.lineas_logistica.map(l => [
+        l.descripcion, l.cantidad || '', l.precio != null ? fmt(l.precio) : '', l.importe != null ? fmt(l.importe) : '',
+      ]), colsLog);
+    }
+
+    // ─── Totales ─────────────────────────────────────────────────────────────
+    if (y > doc.page.height - 80) { doc.addPage(); y = 40; }
+    y += 6;
+    const tw = 200;
+    const tx = 40 + W - tw;
+
+    [[`TOTAL PRESUPUESTO`, fmt(totalBruto)], [`IVA (${p.iva_porcentaje}%)`, fmt(iva)], ['TOTAL', fmt(total)]].forEach(([label, val], i) => {
+      const isBold = i === 2;
+      doc.fillColor(i % 2 === 0 ? [240, 240, 240] : 'white').rect(tx, y, tw, 16).fill();
+      doc.fillColor('#222').font(isBold ? 'Helvetica-Bold' : 'Helvetica').fontSize(8)
+        .text(label, tx + 4, y + 4, { width: 110 })
+        .text(val, tx + 114, y + 4, { width: tw - 120, align: 'right' });
+      y += 16;
+    });
+
+    // ─── Pie ─────────────────────────────────────────────────────────────────
+    doc.fillColor('#999').fontSize(7).font('Helvetica')
+      .text(`${EMPRESA.nombre} · ${EMPRESA.cif} · ${EMPRESA.oficina} · ${EMPRESA.direccion} · ${EMPRESA.localidad}`,
+        40, doc.page.height - 40, { width: W, align: 'center' });
+
+    doc.end();
+  });
 }
 
 module.exports = { exportExcel, exportPdf };
