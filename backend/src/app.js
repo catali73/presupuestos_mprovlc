@@ -25,7 +25,7 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 // Servir frontend estático
-const frontendDist = path.join(__dirname, '../../../frontend/dist');
+const frontendDist = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDist));
 app.get('*', (req, res) => {
   res.sendFile(path.join(frontendDist, 'index.html'));
