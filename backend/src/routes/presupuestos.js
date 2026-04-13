@@ -212,23 +212,7 @@ router.post('/:id/duplicate', auth, async (req, res) => {
     ]);
     const newId = newP[0].id;
 
-    // Copiar todas las líneas
-    const lineasTables = [
-      'lineas_equipamiento', 'lineas_personal_general', 'lineas_logistica',
-      'lineas_personal_contratado', 'lineas_personal_altas_bajas',
-    ];
-    for (const tabla of lineasTables) {
-      await client.query(`
-        INSERT INTO ${tabla} (SELECT nextval('${tabla}_id_seq'), $1, subq.* FROM (
-          SELECT descripcion, uds, unidades, jornadas, coste_jornada, importe, orden
-          FROM ${tabla} WHERE presupuesto_id = $2
-        ) subq)
-      `, [newId, req.params.id]).catch(() => {
-        // Tabla puede tener columnas distintas según el tipo; se ignoran errores de columnas inexistentes
-      });
-    }
-
-    // Duplicar líneas correctamente para cada tabla con sus columnas específicas
+    // Duplicar líneas con las columnas correctas para cada tabla
     await duplicarLineas(client, req.params.id, newId, p.tipo);
 
     await client.query('COMMIT');
@@ -424,14 +408,14 @@ async function duplicarLineas(client, origenId, destinoId, tipo) {
 
   if (tipo === 'GENERAL') {
     await client.query(`
-      INSERT INTO lineas_equipamiento (presupuesto_id, descripcion, uds, unidades, jornadas, coste_jornada, importe, orden)
-      SELECT $1, descripcion, uds, unidades, jornadas, coste_jornada, importe, orden
+      INSERT INTO lineas_equipamiento (presupuesto_id, descripcion, unidades, jornadas, coste_jornada, importe, orden)
+      SELECT $1, descripcion, unidades, jornadas, coste_jornada, importe, orden
       FROM lineas_equipamiento WHERE presupuesto_id=$2
     `, [destinoId, origenId]);
 
     await client.query(`
-      INSERT INTO lineas_personal_general (presupuesto_id, descripcion, uds, unidades, jornadas, coste_jornada, importe, orden)
-      SELECT $1, descripcion, uds, unidades, jornadas, coste_jornada, importe, orden
+      INSERT INTO lineas_personal_general (presupuesto_id, descripcion, unidades, jornadas, coste_jornada, importe, orden)
+      SELECT $1, descripcion, unidades, jornadas, coste_jornada, importe, orden
       FROM lineas_personal_general WHERE presupuesto_id=$2
     `, [destinoId, origenId]);
   }
@@ -451,8 +435,8 @@ async function duplicarLineas(client, origenId, destinoId, tipo) {
   }
 
   await client.query(`
-    INSERT INTO lineas_logistica (presupuesto_id, descripcion, uds, unidades, jornadas, coste_jornada, cantidad, precio, importe, orden)
-    SELECT $1, descripcion, uds, unidades, jornadas, coste_jornada, cantidad, precio, importe, orden
+    INSERT INTO lineas_logistica (presupuesto_id, descripcion, unidades, jornadas, coste_jornada, cantidad, precio, importe, orden)
+    SELECT $1, descripcion, unidades, jornadas, coste_jornada, cantidad, precio, importe, orden
     FROM lineas_logistica WHERE presupuesto_id=$2
   `, [destinoId, origenId]);
 }
