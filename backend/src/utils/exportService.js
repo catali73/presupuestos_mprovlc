@@ -343,22 +343,23 @@ async function exportPdf(p) {
     const W = doc.page.width - 80; // ancho útil
 
     // ─── Cabecera ───────────────────────────────────────────────────────────
-    // Logo recortado sin padding: 530×292px → ratio 1.816:1
-    const LOGO_RATIO = 292 / 530; // height/width
-    const LOGO_W = 91; // 107 × 0.85 (-15%)
-    const LOGO_X = 30;
-    const LOGO_Y = 8;
-    const LOGO_H = Math.round(LOGO_W * LOGO_RATIO); // ~72pt
+    // Layout:
+    //   1) Logo — arriba izquierda, alineado con el margen del cuerpo (x=40)
+    //   2) Datos fiscales cliente — alineados a la derecha, DEBAJO del logo
+    //   3) Barra de presupuesto — debajo de los datos del cliente
+
+    const LOGO_RATIO = 292 / 530; // ratio real del PNG recortado
+    const LOGO_W = 91;
+    const LOGO_X = 40; // alineado con el margen izquierdo del cuerpo
+    const LOGO_Y = 20;
+    const LOGO_H = Math.round(LOGO_W * LOGO_RATIO); // ~50pt
 
     if (fs.existsSync(LOGO_PATH)) {
       doc.image(LOGO_PATH, LOGO_X, LOGO_Y, { width: LOGO_W });
     }
 
-    const barY = LOGO_Y + LOGO_H + 8;
-
-    // Datos fiscales del cliente — derecha, alineados a la derecha
+    // Datos fiscales del cliente — debajo del logo, alineados a la derecha
     const cli = p.cliente || {};
-    // Dirección y CP+ciudad SIEMPRE en líneas separadas (no se fusionan)
     const clienteLines = [
       cli.razon_social || cli.nombre || '',
       cli.cif || '',
@@ -368,15 +369,17 @@ async function exportPdf(p) {
     ].filter(line => line.trim() !== '');
 
     const LINE_H = 11;
-    const textX = LOGO_X + LOGO_W + 8;
-    const textW = W - LOGO_W - 8;
-    const clienteStartY = LOGO_Y + Math.max(0, (LOGO_H - clienteLines.length * LINE_H) / 2);
+    const clienteStartY = LOGO_Y + LOGO_H + 8;
 
     doc.font('Helvetica').fontSize(7.5).fillColor('#333');
-    // Índice explícito — cada línea tiene su propia coordenada Y calculada
     clienteLines.forEach((line, i) => {
-      doc.text(line, textX, clienteStartY + i * LINE_H, { width: textW, align: 'right', lineBreak: false });
+      const lineY = clienteStartY + i * LINE_H;
+      const lineW = doc.widthOfString(line, { fontSize: 7.5 });
+      doc.text(line, 40 + W - lineW, lineY, { lineBreak: false });
     });
+
+    const barY = clienteStartY + clienteLines.length * LINE_H + 8;
+
     doc.strokeColor('#e0e0e0').lineWidth(0.5).moveTo(40, barY - 4).lineTo(40 + W, barY - 4).stroke();
 
     // Caja roja/naranja con número y fecha
