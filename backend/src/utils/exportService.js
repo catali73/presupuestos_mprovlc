@@ -2,7 +2,7 @@ const ExcelJS = require('exceljs');
 const path = require('path');
 const fs = require('fs');
 
-const LOGO_PATH = path.join(__dirname, '../assets/logo-mediapro.png');
+const LOGO_PATH = path.join(__dirname, '../assets/logo-mediapro-crop.png');
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -343,19 +343,18 @@ async function exportPdf(p) {
     const W = doc.page.width - 80; // ancho útil
 
     // ─── Cabecera ───────────────────────────────────────────────────────────
-    // El PNG de Mediapro es 1080×1080 con ~20% de padding blanco alrededor.
-    // El contenido visible ocupa ~60% del alto → visible ≈ LOGO_W * 0.6
+    // Logo recortado sin padding: 530×292px → ratio 1.816:1
+    const LOGO_RATIO = 292 / 530; // height/width
     const LOGO_W = 130;
-    const LOGO_X = 30;  // más a la izquierda del margen estándar
-    const LOGO_Y = 5;   // pegado al borde superior
+    const LOGO_X = 30;
+    const LOGO_Y = 8;
+    const LOGO_H = Math.round(LOGO_W * LOGO_RATIO); // ~72pt
 
     if (fs.existsSync(LOGO_PATH)) {
       doc.image(LOGO_PATH, LOGO_X, LOGO_Y, { width: LOGO_W });
     }
 
-    // barY se calcula sobre el contenido visible del logo, no el total del PNG
-    const LOGO_VISIBLE_H = Math.round(LOGO_W * 0.62); // ~80pt para LOGO_W=130
-    const barY = LOGO_Y + LOGO_VISIBLE_H + 6;
+    const barY = LOGO_Y + LOGO_H + 8;
 
     // Datos fiscales del cliente — derecha, alineados a la derecha
     const cli = p.cliente || {};
@@ -367,9 +366,9 @@ async function exportPdf(p) {
       cli.pais || '',
     ].filter(Boolean);
 
-    // Centrados verticalmente en el espacio del logo visible
+    // Centrados verticalmente con el logo
     const clienteBlockH = clienteLines.length * 10;
-    const clienteStartY = LOGO_Y + Math.max(0, (LOGO_VISIBLE_H - clienteBlockH) / 2) + 4;
+    const clienteStartY = LOGO_Y + Math.max(0, (LOGO_H - clienteBlockH) / 2);
     let cy = clienteStartY;
     doc.font('Helvetica').fontSize(7.5).fillColor('#333');
     clienteLines.forEach(line => {
