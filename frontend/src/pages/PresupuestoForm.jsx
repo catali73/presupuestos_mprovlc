@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Save, ArrowLeft, Send, Download, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, Send, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 
@@ -59,7 +59,7 @@ function fmt(v) {
 }
 
 // ─── Fila editable tipo GENERAL ───────────────────────────────────────────────
-function LineaGeneral({ linea, onChange, onRemove, tarifas = [], listId = '' }) {
+function LineaGeneral({ linea, onChange, onRemove, onMoveUp, onMoveDown, tarifas = [], listId = '' }) {
   const handleChange = (key, val) => {
     const updated = { ...linea, [key]: val };
     // Auto-rellenar coste cuando se selecciona del catálogo
@@ -87,17 +87,19 @@ function LineaGeneral({ linea, onChange, onRemove, tarifas = [], listId = '' }) 
       <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" step="0.5" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right" type="number" value={linea.coste_jornada} onChange={e => handleChange('coste_jornada', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right bg-gray-50" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} /></td>
-      <td className="px-2 py-1.5 w-8">
-        <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
-          <Trash2 size={13} />
-        </button>
+      <td className="px-2 py-1.5 w-14">
+        <div className="opacity-0 group-hover:opacity-100 flex flex-col items-center gap-0.5">
+          <button onClick={onMoveUp} className="text-gray-400 hover:text-gray-600 p-0.5"><ChevronUp size={12} /></button>
+          <button onClick={onMoveDown} className="text-gray-400 hover:text-gray-600 p-0.5"><ChevronDown size={12} /></button>
+          <button onClick={onRemove} className="text-red-400 hover:text-red-600 p-0.5"><Trash2 size={12} /></button>
+        </div>
       </td>
     </tr>
   );
 }
 
 // ─── Fila editable tipo PERSONAL ──────────────────────────────────────────────
-function LineaPersonal({ linea, onChange, onRemove, tarifasPersonas = [], tarifasDietas = [], listPersonasId = '' }) {
+function LineaPersonal({ linea, onChange, onRemove, onMoveUp, onMoveDown, tarifasPersonas = [], tarifasDietas = [], listPersonasId = '' }) {
   const handleChange = (key, val) => {
     const updated = { ...linea, [key]: val };
     // Auto-rellenar tarifa cuando se selecciona posición
@@ -167,17 +169,19 @@ function LineaPersonal({ linea, onChange, onRemove, tarifasPersonas = [], tarifa
       <td className="px-2 py-1.5 w-24">
         <input className="input text-xs text-right bg-gray-50 w-full" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} />
       </td>
-      <td className="px-2 py-1.5 w-8">
-        <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1">
-          <Trash2 size={13} />
-        </button>
+      <td className="px-2 py-1.5 w-14">
+        <div className="opacity-0 group-hover:opacity-100 flex flex-col items-center gap-0.5">
+          <button onClick={onMoveUp} className="text-gray-400 hover:text-gray-600 p-0.5"><ChevronUp size={12} /></button>
+          <button onClick={onMoveDown} className="text-gray-400 hover:text-gray-600 p-0.5"><ChevronDown size={12} /></button>
+          <button onClick={onRemove} className="text-red-400 hover:text-red-600 p-0.5"><Trash2 size={12} /></button>
+        </div>
       </td>
     </tr>
   );
 }
 
 // ─── Fila logística Personal ──────────────────────────────────────────────────
-function LineaLogisticaPersonal({ linea, onChange, onRemove }) {
+function LineaLogisticaPersonal({ linea, onChange, onRemove, onMoveUp, onMoveDown }) {
   const handleChange = (key, val) => {
     const updated = { ...linea, [key]: val };
     updated.importe = calcImporteLogisticaPersonal(updated);
@@ -189,8 +193,12 @@ function LineaLogisticaPersonal({ linea, onChange, onRemove }) {
       <td className="px-2 py-1.5 w-24"><input className="input text-xs text-center" type="number" value={linea.cantidad} onChange={e => handleChange('cantidad', e.target.value)} placeholder="Cantidad" /></td>
       <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right" type="number" value={linea.precio} onChange={e => handleChange('precio', e.target.value)} placeholder="Precio" /></td>
       <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right bg-gray-50" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} /></td>
-      <td className="px-2 py-1.5 w-8">
-        <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1"><Trash2 size={13} /></button>
+      <td className="px-2 py-1.5 w-14">
+        <div className="opacity-0 group-hover:opacity-100 flex flex-col items-center gap-0.5">
+          <button onClick={onMoveUp} className="text-gray-400 hover:text-gray-600 p-0.5"><ChevronUp size={12} /></button>
+          <button onClick={onMoveDown} className="text-gray-400 hover:text-gray-600 p-0.5"><ChevronDown size={12} /></button>
+          <button onClick={onRemove} className="text-red-400 hover:text-red-600 p-0.5"><Trash2 size={12} /></button>
+        </div>
       </td>
     </tr>
   );
@@ -372,6 +380,13 @@ export default function PresupuestoForm() {
 
   const updateLinea = (setter, idx, updated) => setter(prev => prev.map((l, i) => i === idx ? updated : l));
   const removeLinea = (setter, idx) => setter(prev => prev.filter((_, i) => i !== idx));
+  const moveLinea = (setter, idx, dir) => setter(prev => {
+    const arr = [...prev];
+    const to = idx + dir;
+    if (to < 0 || to >= arr.length) return arr;
+    [arr[idx], arr[to]] = [arr[to], arr[idx]];
+    return arr;
+  });
 
   // Tarifas preparadas para cada sección
   const tarifasEquiposMapped = tarifasEquipos.map(t => ({ label: t.descripcion, coste: t.tarifa_trabajo }));
@@ -592,6 +607,8 @@ export default function PresupuestoForm() {
                       <LineaGeneral key={i} linea={l}
                         onChange={u => updateLinea(setLineasEquip, i, u)}
                         onRemove={() => removeLinea(setLineasEquip, i)}
+                        onMoveUp={() => moveLinea(setLineasEquip, i, -1)}
+                        onMoveDown={() => moveLinea(setLineasEquip, i, 1)}
                         tarifas={tarifasEquiposMapped}
                         listId="equipos-list"
                       />
@@ -618,6 +635,8 @@ export default function PresupuestoForm() {
                       <LineaGeneral key={i} linea={l}
                         onChange={u => updateLinea(setLineasPersGeneral, i, u)}
                         onRemove={() => removeLinea(setLineasPersGeneral, i)}
+                        onMoveUp={() => moveLinea(setLineasPersGeneral, i, -1)}
+                        onMoveDown={() => moveLinea(setLineasPersGeneral, i, 1)}
                         tarifas={tarifasCamarasMapped}
                         listId="personas-camaras-list"
                       />
@@ -644,6 +663,8 @@ export default function PresupuestoForm() {
                       <LineaGeneral key={i} linea={l}
                         onChange={u => updateLinea(setLineasLogistica, i, u)}
                         onRemove={() => removeLinea(setLineasLogistica, i)}
+                        onMoveUp={() => moveLinea(setLineasLogistica, i, -1)}
+                        onMoveDown={() => moveLinea(setLineasLogistica, i, 1)}
                       />
                     ))}
                     {!lineasLogistica.length && <tr><td colSpan={7} className="text-center text-gray-400 py-4 text-xs">Sin líneas — pulsa "Añadir línea"</td></tr>}
@@ -671,6 +692,8 @@ export default function PresupuestoForm() {
                       <LineaPersonal key={i} linea={l}
                         onChange={u => updateLinea(setLineasPersCont, i, u)}
                         onRemove={() => removeLinea(setLineasPersCont, i)}
+                        onMoveUp={() => moveLinea(setLineasPersCont, i, -1)}
+                        onMoveDown={() => moveLinea(setLineasPersCont, i, 1)}
                         tarifasPersonas={tarifasContratado}
                         tarifasDietas={tarifasDietas}
                         listPersonasId="personas-cont-list"
@@ -699,6 +722,8 @@ export default function PresupuestoForm() {
                       <LineaPersonal key={i} linea={l}
                         onChange={u => updateLinea(setLineasPersAB, i, u)}
                         onRemove={() => removeLinea(setLineasPersAB, i)}
+                        onMoveUp={() => moveLinea(setLineasPersAB, i, -1)}
+                        onMoveDown={() => moveLinea(setLineasPersAB, i, 1)}
                         tarifasPersonas={tarifasAltasBajas}
                         tarifasDietas={tarifasDietas}
                         listPersonasId="personas-ab-list"
@@ -724,6 +749,8 @@ export default function PresupuestoForm() {
                       <LineaLogisticaPersonal key={i} linea={l}
                         onChange={u => updateLinea(setLineasLogistica, i, u)}
                         onRemove={() => removeLinea(setLineasLogistica, i)}
+                        onMoveUp={() => moveLinea(setLineasLogistica, i, -1)}
+                        onMoveDown={() => moveLinea(setLineasLogistica, i, 1)}
                       />
                     ))}
                     {!lineasLogistica.length && <tr><td colSpan={5} className="text-center text-gray-400 py-4 text-xs">Sin líneas — pulsa "Añadir línea"</td></tr>}
