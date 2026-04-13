@@ -333,7 +333,7 @@ async function getPresupuestoCompleto(id) {
       row_to_json(r) AS responsable,
       row_to_json(cc) AS contacto
     FROM presupuestos p
-    LEFT JOIN (SELECT id, nombre, razon_social, cif, direccion, tipologia FROM clientes) c ON c.id = p.cliente_id
+    LEFT JOIN (SELECT id, nombre, razon_social, cif, direccion, codigo_postal, ciudad, pais, tipologia FROM clientes) c ON c.id = p.cliente_id
     LEFT JOIN (SELECT id, nombre, email, telefono FROM responsables) r ON r.id = p.responsable_id
     LEFT JOIN (SELECT id, nombre, email, telefono FROM contactos_cliente) cc ON cc.id = p.contacto_id
     WHERE p.id = $1

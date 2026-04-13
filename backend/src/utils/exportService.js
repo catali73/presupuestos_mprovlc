@@ -1,4 +1,8 @@
 const ExcelJS = require('exceljs');
+const path = require('path');
+const fs = require('fs');
+
+const LOGO_PATH = path.join(__dirname, '../assets/logo-mediapro.png');
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -111,15 +115,36 @@ async function buildSheetGeneral(wb, p) {
     { key: 'importe', width: 16 },
   ];
 
-  // Cabecera
-  let r = ws.addRow(['', 'CLIENTE', '', '', '', '']);
-  applyStyles(r, sectionStyle(ROJO));
-  ws.addRow(['', p.cliente?.nombre || '', '', '', '', '']);
+  // Logo en Excel (si existe el fichero)
+  if (fs.existsSync(LOGO_PATH)) {
+    const logoId = wb.addImage({ filename: LOGO_PATH, extension: 'png' });
+    ws.addImage(logoId, { tl: { col: 1, row: 0 }, ext: { width: 110, height: 44 } });
+  }
+
+  const cli = p.cliente || {};
+  const clienteLines = [
+    cli.razon_social || cli.nombre || '',
+    cli.cif || '',
+    cli.direccion || '',
+    [cli.codigo_postal, cli.ciudad].filter(Boolean).join(' '),
+    cli.pais || '',
+  ].filter(Boolean);
 
   const fechaStr = p.fecha_presupuesto ? new Date(p.fecha_presupuesto).toLocaleDateString('es-ES') : '';
-  ws.addRow(['', 'PROYECTO', '', '', 'PRESUPUESTO', p.numero]);
-  ws.addRow(['', p.evento || '', '', '', 'FECHA', fechaStr]);
-  ws.addRow(['', '', '', '', 'SOLICITADO', p.contacto?.nombre || '']);
+
+  // Filas de cabecera (logo ocupa col B; datos fiscales del cliente en col F, alineados derecha)
+  for (let i = 0; i < Math.max(clienteLines.length, 3); i++) {
+    const rowData = ['', '', '', '', '', clienteLines[i] || ''];
+    const r2 = ws.addRow(rowData);
+    r2.getCell(6).alignment = { horizontal: 'right' };
+    r2.getCell(6).font = { size: 9, color: { argb: 'FF333333' } };
+  }
+
+  let r = ws.addRow(['', 'PROYECTO', '', '', 'Nº', p.numero]);
+  r.getCell(5).font = { bold: true, size: 9 };
+  r.getCell(6).alignment = { horizontal: 'right' };
+  ws.addRow(['', p.evento || '', '', '', 'FECHA', fechaStr]).getCell(6).alignment = { horizontal: 'right' };
+  ws.addRow(['', '', '', '', p.tipo === 'GENERAL' ? 'SOLICITADO' : 'PETICIÓN', p.contacto?.nombre || '']).getCell(6).alignment = { horizontal: 'right' };
   ws.addRow([]);
 
   // Cabecera columnas
@@ -200,12 +225,29 @@ async function buildSheetPersonal(wb, p) {
   ];
 
   const fechaStr = p.fecha_presupuesto ? new Date(p.fecha_presupuesto).toLocaleDateString('es-ES') : '';
+  const cli2 = p.cliente || {};
+  const clienteLines2 = [
+    cli2.razon_social || cli2.nombre || '',
+    cli2.cif || '',
+    cli2.direccion || '',
+    [cli2.codigo_postal, cli2.ciudad].filter(Boolean).join(' '),
+    cli2.pais || '',
+  ].filter(Boolean);
 
-  ws.addRow(['', 'CLIENTE', '', '', '', '', '', '']);
-  ws.addRow(['', p.cliente?.nombre || '', '', '', '', '', '', '']);
-  ws.addRow(['', '', '', '', '', 'PETICIÓN', p.contacto?.nombre || '', '']);
+  if (fs.existsSync(LOGO_PATH)) {
+    const logoId2 = wb.addImage({ filename: LOGO_PATH, extension: 'png' });
+    ws.addImage(logoId2, { tl: { col: 1, row: 0 }, ext: { width: 110, height: 44 } });
+  }
+
+  for (let i = 0; i < Math.max(clienteLines2.length, 3); i++) {
+    const r2 = ws.addRow(['', '', '', '', '', '', '', clienteLines2[i] || '']);
+    r2.getCell(8).alignment = { horizontal: 'right' };
+    r2.getCell(8).font = { size: 9, color: { argb: 'FF333333' } };
+  }
+
   ws.addRow(['', 'PROYECTO', '', 'COMPETICIÓN', '', 'ALBARÁN', p.numero, '']);
   ws.addRow(['', p.evento || '', '', p.competicion || '', '', 'FECHA', fechaStr, '']);
+  ws.addRow(['', '', '', '', '', 'PETICIÓN', p.contacto?.nombre || '', '']);
   ws.addRow([]);
 
   // Cabecera columnas
@@ -301,39 +343,64 @@ async function exportPdf(p) {
     const W = doc.page.width - 80; // ancho útil
 
     // ─── Cabecera ───────────────────────────────────────────────────────────
-    doc.fontSize(14).font('Helvetica-Bold').text('CCEE — Gestión Presupuestos', 40, 40);
-    doc.fontSize(8).font('Helvetica').fillColor('#666')
-      .text(`${EMPRESA.nombre} · ${EMPRESA.cif} · ${EMPRESA.localidad}`, 40, 58);
+    const LOGO_H = 42;
+    const LOGO_W = 84;
+
+    // Logo izquierda (si existe el fichero)
+    if (fs.existsSync(LOGO_PATH)) {
+      doc.image(LOGO_PATH, 40, 36, { width: LOGO_W, height: LOGO_H });
+    }
+
+    // Datos fiscales del cliente — derecha, alineados a la derecha
+    const cli = p.cliente || {};
+    const clienteLines = [
+      cli.razon_social || cli.nombre || '',
+      cli.cif || '',
+      cli.direccion || '',
+      [cli.codigo_postal, cli.ciudad].filter(Boolean).join(' '),
+      cli.pais || '',
+    ].filter(Boolean);
+
+    let cy = 36;
+    doc.font('Helvetica').fontSize(7.5).fillColor('#333');
+    clienteLines.forEach(line => {
+      doc.text(line, 40 + LOGO_W + 10, cy, { width: W - LOGO_W - 10, align: 'right', lineBreak: false });
+      cy += 9;
+    });
+
+    // Línea separadora bajo la cabecera
+    const barY = 86;
+    doc.strokeColor('#e0e0e0').lineWidth(0.5).moveTo(40, barY - 4).lineTo(40 + W, barY - 4).stroke();
 
     // Caja roja/naranja con número y fecha
-    doc.fillColor(headerColor).rect(40, 72, W, 22).fill();
+    doc.fillColor(headerColor).rect(40, barY, W, 22).fill();
     doc.fillColor('white').font('Helvetica-Bold').fontSize(10)
-      .text(`${isGeneral ? 'PRESUPUESTO' : 'ALBARÁN'}: ${p.numero}`, 45, 77)
-      .text(`FECHA: ${fechaStr}`, 350, 77);
+      .text(`${isGeneral ? 'PRESUPUESTO' : 'ALBARÁN'}: ${p.numero}`, 45, barY + 6, { lineBreak: false })
+      .text(`FECHA: ${fechaStr}`, 45, barY + 6, { width: W - 10, align: 'right', lineBreak: false });
 
-    // Datos generales
-    let y = 105;
-    doc.fillColor('#333').font('Helvetica-Bold').fontSize(8).text('CLIENTE:', 40, y);
-    doc.font('Helvetica').text(p.cliente?.nombre || '—', 100, y);
-    doc.font('Helvetica-Bold').text(isGeneral ? 'SOLICITADO:' : 'PETICIÓN:', 350, y);
-    doc.font('Helvetica').text(p.contacto?.nombre || '—', 430, y);
+    // Datos del presupuesto
+    let y = barY + 32;
+    doc.fillColor('#333').font('Helvetica-Bold').fontSize(8).text('CLIENTE:', 40, y, { lineBreak: false });
+    doc.font('Helvetica').text(cli.nombre || '—', 100, y, { lineBreak: false });
+    doc.font('Helvetica-Bold').text(isGeneral ? 'SOLICITADO:' : 'PETICIÓN:', 350, y, { lineBreak: false });
+    doc.font('Helvetica').text(p.contacto?.nombre || '—', 430, y, { lineBreak: false });
     y += 14;
-    doc.font('Helvetica-Bold').text('EVENTO:', 40, y);
-    doc.font('Helvetica').text(p.evento || '—', 100, y);
+    doc.font('Helvetica-Bold').text('EVENTO:', 40, y, { lineBreak: false });
+    doc.font('Helvetica').text(p.evento || '—', 100, y, { lineBreak: false });
     if (!isGeneral && p.competicion) {
-      doc.font('Helvetica-Bold').text('COMPET.:', 350, y);
-      doc.font('Helvetica').text(p.competicion, 430, y);
+      doc.font('Helvetica-Bold').text('COMPET.:', 350, y, { lineBreak: false });
+      doc.font('Helvetica').text(p.competicion, 430, y, { lineBreak: false });
     }
     y += 14;
     if (p.localizacion) {
-      doc.font('Helvetica-Bold').text('LOCALIZ.:', 40, y);
-      doc.font('Helvetica').text(p.localizacion, 100, y);
+      doc.font('Helvetica-Bold').text('LOCALIZ.:', 40, y, { lineBreak: false });
+      doc.font('Helvetica').text(p.localizacion, 100, y, { lineBreak: false });
     }
     if (p.fecha_inicio || p.fecha_fin) {
-      doc.font('Helvetica-Bold').text('FECHAS:', 350, y);
+      doc.font('Helvetica-Bold').text('FECHAS:', 350, y, { lineBreak: false });
       const fi = p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString('es-ES') : '';
       const ff = p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString('es-ES') : '';
-      doc.font('Helvetica').text(`${fi}${fi && ff ? ' → ' : ''}${ff}`, 430, y);
+      doc.font('Helvetica').text(`${fi}${fi && ff ? ' → ' : ''}${ff}`, 430, y, { lineBreak: false });
     }
     y += 20;
 
