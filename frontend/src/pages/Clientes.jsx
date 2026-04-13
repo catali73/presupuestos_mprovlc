@@ -177,17 +177,15 @@ export default function Clientes() {
                   </button>
                 </div>
                 {form.contactos.map((c, i) => (
-                  <div key={i} className="grid grid-cols-5 gap-2 mb-2 p-3 bg-gray-50 rounded-lg items-center">
-                    <input className="input text-xs col-span-2" placeholder="Nombre" value={c.nombre} onChange={e => setContacto(i, 'nombre', e.target.value)} />
-                    <input className="input text-xs col-span-2" placeholder="Email" value={c.email} onChange={e => setContacto(i, 'email', e.target.value)} />
-                    <div className="flex gap-1 items-center">
-                      <input className="input text-xs flex-1 min-w-0" placeholder="Teléfono" value={c.telefono} onChange={e => setContacto(i, 'telefono', e.target.value)} />
-                      {form.contactos.length > 1 && (
-                        <button onClick={() => setForm(f => ({ ...f, contactos: f.contactos.filter((_, j) => j !== i) }))} className="text-red-400 hover:text-red-600 shrink-0">
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </div>
+                  <div key={i} className="flex gap-2 mb-2 p-3 bg-gray-50 rounded-lg items-center">
+                    <input className="input text-xs flex-1 min-w-0" placeholder="Nombre" value={c.nombre} onChange={e => setContacto(i, 'nombre', e.target.value)} />
+                    <input className="input text-xs flex-1 min-w-0" placeholder="Email" value={c.email} onChange={e => setContacto(i, 'email', e.target.value)} />
+                    <input className="input text-xs w-40 shrink-0" placeholder="+34 600 000 000" value={c.telefono} onChange={e => setContacto(i, 'telefono', e.target.value)} />
+                    {form.contactos.length > 1 && (
+                      <button onClick={() => setForm(f => ({ ...f, contactos: f.contactos.filter((_, j) => j !== i) }))} className="text-red-400 hover:text-red-600 shrink-0">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
