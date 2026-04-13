@@ -40,7 +40,7 @@ router.get('/:id', auth, async (req, res) => {
 
 // POST /api/clientes
 router.post('/', auth, async (req, res) => {
-  const { nombre, razon_social, cif, direccion, tipologia, contactos = [] } = req.body;
+  const { nombre, razon_social, cif, direccion, codigo_postal, ciudad, pais, tipologia, contactos = [] } = req.body;
   if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
 
   const client = await pool.connect();
@@ -48,9 +48,10 @@ router.post('/', auth, async (req, res) => {
     await client.query('BEGIN');
 
     const { rows } = await client.query(
-      `INSERT INTO clientes (nombre, razon_social, cif, direccion, tipologia)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [nombre, razon_social || null, cif || null, direccion || null, tipologia || null]
+      `INSERT INTO clientes (nombre, razon_social, cif, direccion, codigo_postal, ciudad, pais, tipologia)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [nombre, razon_social || null, cif || null, direccion || null,
+       codigo_postal || null, ciudad || null, pais || null, tipologia || null]
     );
     const newCliente = rows[0];
 
@@ -73,15 +74,17 @@ router.post('/', auth, async (req, res) => {
 
 // PUT /api/clientes/:id
 router.put('/:id', auth, async (req, res) => {
-  const { nombre, razon_social, cif, direccion, tipologia, activo, contactos } = req.body;
+  const { nombre, razon_social, cif, direccion, codigo_postal, ciudad, pais, tipologia, activo, contactos } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
     await client.query(
-      `UPDATE clientes SET nombre=$1, razon_social=$2, cif=$3, direccion=$4, tipologia=$5, activo=$6
-       WHERE id=$7`,
-      [nombre, razon_social || null, cif || null, direccion || null, tipologia || null, activo ?? true, req.params.id]
+      `UPDATE clientes SET nombre=$1, razon_social=$2, cif=$3, direccion=$4, codigo_postal=$5,
+       ciudad=$6, pais=$7, tipologia=$8, activo=$9 WHERE id=$10`,
+      [nombre, razon_social || null, cif || null, direccion || null,
+       codigo_postal || null, ciudad || null, pais || null,
+       tipologia || null, activo ?? true, req.params.id]
     );
 
     if (Array.isArray(contactos)) {

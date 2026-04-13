@@ -5,7 +5,7 @@ import api from '../lib/api';
 
 function emptyContacto() { return { nombre: '', telefono: '', email: '' }; }
 function emptyCliente() {
-  return { nombre: '', razon_social: '', cif: '', direccion: '', tipologia: '', contactos: [emptyContacto()] };
+  return { nombre: '', razon_social: '', cif: '', direccion: '', codigo_postal: '', ciudad: '', pais: 'España', tipologia: '', contactos: [emptyContacto()] };
 }
 
 export default function Clientes() {
@@ -21,7 +21,7 @@ export default function Clientes() {
 
   const openCreate = () => { setForm(emptyCliente()); setModal({ mode: 'create' }); };
   const openEdit = (c) => {
-    setForm({ ...c, contactos: c.contactos?.length ? c.contactos : [emptyContacto()] });
+    setForm({ ...c, pais: c.pais || 'España', contactos: c.contactos?.length ? c.contactos : [emptyContacto()] });
     setModal({ mode: 'edit', id: c.id });
   };
 
@@ -86,7 +86,7 @@ export default function Clientes() {
                 <td className="table-td font-medium">{c.nombre}</td>
                 <td className="table-td text-gray-500 text-xs">
                   <p>{c.razon_social || '—'}</p>
-                  <p>{c.cif || ''}</p>
+                  <p className="text-gray-400">{c.cif || ''}</p>
                 </td>
                 <td className="table-td">
                   {c.tipologia ? (
@@ -115,13 +115,14 @@ export default function Clientes() {
       {/* Modal */}
       {modal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="card w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="card w-full max-w-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="font-semibold">{modal.mode === 'create' ? 'Nuevo cliente' : 'Editar cliente'}</h2>
               <button onClick={() => setModal(null)}><X size={18} className="text-gray-400" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              {/* Datos básicos */}
+              <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className="label">Nombre *</label>
                   <input className="input" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
@@ -134,10 +135,6 @@ export default function Clientes() {
                   <label className="label">CIF</label>
                   <input className="input" value={form.cif} onChange={e => setForm(f => ({ ...f, cif: e.target.value }))} />
                 </div>
-                <div className="col-span-2">
-                  <label className="label">Dirección</label>
-                  <input className="input" value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
-                </div>
                 <div>
                   <label className="label">Tipología</label>
                   <select className="select" value={form.tipologia} onChange={e => setForm(f => ({ ...f, tipologia: e.target.value }))}>
@@ -148,22 +145,45 @@ export default function Clientes() {
                 </div>
               </div>
 
+              {/* Dirección */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Dirección</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="label">Calle / Dirección</label>
+                    <input className="input" placeholder="Av. Example, 123" value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Código postal</label>
+                    <input className="input" placeholder="46000" value={form.codigo_postal} onChange={e => setForm(f => ({ ...f, codigo_postal: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Ciudad</label>
+                    <input className="input" placeholder="Valencia" value={form.ciudad} onChange={e => setForm(f => ({ ...f, ciudad: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="label">País</label>
+                    <input className="input" placeholder="España" value={form.pais} onChange={e => setForm(f => ({ ...f, pais: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+
               {/* Contactos */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="label mb-0">Personas de contacto</label>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Personas de contacto</p>
                   <button className="btn-ghost text-xs" onClick={() => setForm(f => ({ ...f, contactos: [...f.contactos, emptyContacto()] }))}>
-                    <UserPlus size={13} /> Añadir contacto
+                    <UserPlus size={13} /> Añadir
                   </button>
                 </div>
                 {form.contactos.map((c, i) => (
-                  <div key={i} className="grid grid-cols-3 gap-2 mb-2 p-3 bg-gray-50 rounded-lg">
-                    <input className="input text-xs" placeholder="Nombre" value={c.nombre} onChange={e => setContacto(i, 'nombre', e.target.value)} />
-                    <input className="input text-xs" placeholder="Teléfono" value={c.telefono} onChange={e => setContacto(i, 'telefono', e.target.value)} />
-                    <div className="flex gap-2">
-                      <input className="input text-xs flex-1" placeholder="Email" value={c.email} onChange={e => setContacto(i, 'email', e.target.value)} />
+                  <div key={i} className="grid grid-cols-5 gap-2 mb-2 p-3 bg-gray-50 rounded-lg items-center">
+                    <input className="input text-xs col-span-2" placeholder="Nombre" value={c.nombre} onChange={e => setContacto(i, 'nombre', e.target.value)} />
+                    <input className="input text-xs col-span-2" placeholder="Email" value={c.email} onChange={e => setContacto(i, 'email', e.target.value)} />
+                    <div className="flex gap-1 items-center">
+                      <input className="input text-xs flex-1 min-w-0" placeholder="Teléfono" value={c.telefono} onChange={e => setContacto(i, 'telefono', e.target.value)} />
                       {form.contactos.length > 1 && (
-                        <button onClick={() => setForm(f => ({ ...f, contactos: f.contactos.filter((_, j) => j !== i) }))} className="text-red-400 hover:text-red-600">
+                        <button onClick={() => setForm(f => ({ ...f, contactos: f.contactos.filter((_, j) => j !== i) }))} className="text-red-400 hover:text-red-600 shrink-0">
                           <Trash2 size={13} />
                         </button>
                       )}
