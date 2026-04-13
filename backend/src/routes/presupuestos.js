@@ -6,16 +6,19 @@ const { exportExcel, exportPdf } = require('../utils/exportService');
 const emailService = require('../utils/emailService');
 
 // ─── LISTADO con filtros ──────────────────────────────────────────────────────
-// GET /api/presupuestos?status=&responsable_id=&departamento=&tipo=&page=&limit=
+// GET /api/presupuestos?status=&departamento=&tipo=&search=&anyo=&trimestre=&mes=&page=&limit=
 router.get('/', auth, async (req, res) => {
-  const { status, responsable_id, departamento, tipo, search, page = 1, limit = 50 } = req.query;
+  const { status, responsable_id, departamento, tipo, search, anyo, trimestre, mes, page = 1, limit = 50 } = req.query;
   const conditions = [];
   const params = [];
 
-  if (status) { params.push(status); conditions.push(`p.status = $${params.length}`); }
+  if (status)         { params.push(status);        conditions.push(`p.status = $${params.length}`); }
   if (responsable_id) { params.push(responsable_id); conditions.push(`p.responsable_id = $${params.length}`); }
-  if (departamento) { params.push(departamento); conditions.push(`p.departamento = $${params.length}`); }
-  if (tipo) { params.push(tipo); conditions.push(`p.tipo = $${params.length}`); }
+  if (departamento)   { params.push(departamento);   conditions.push(`p.departamento = $${params.length}`); }
+  if (tipo)           { params.push(tipo);           conditions.push(`p.tipo = $${params.length}`); }
+  if (anyo)           { params.push(parseInt(anyo)); conditions.push(`EXTRACT(YEAR FROM p.fecha_presupuesto) = $${params.length}`); }
+  if (trimestre)      { params.push(parseInt(trimestre)); conditions.push(`EXTRACT(QUARTER FROM p.fecha_presupuesto) = $${params.length}`); }
+  if (mes)            { params.push(parseInt(mes));  conditions.push(`EXTRACT(MONTH FROM p.fecha_presupuesto) = $${params.length}`); }
   if (search) {
     params.push(`%${search}%`);
     conditions.push(`(p.evento ILIKE $${params.length} OR p.numero ILIKE $${params.length} OR c.nombre ILIKE $${params.length})`);
@@ -23,6 +26,15 @@ router.get('/', auth, async (req, res) => {
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const offset = (parseInt(page) - 1) * parseInt(limit);
+
+  // Subquery para calcular total_bruto de cada presupuesto sumando todas las tablas de líneas
+  const totalBrutoSQ = `(
+    COALESCE((SELECT SUM(importe) FROM lineas_equipamiento      WHERE presupuesto_id = p.id), 0) +
+    COALESCE((SELECT SUM(importe) FROM lineas_personal_general  WHERE presupuesto_id = p.id), 0) +
+    COALESCE((SELECT SUM(importe) FROM lineas_personal_contratado WHERE presupuesto_id = p.id), 0) +
+    COALESCE((SELECT SUM(importe) FROM lineas_personal_altas_bajas WHERE presupuesto_id = p.id), 0) +
+    COALESCE((SELECT SUM(importe) FROM lineas_logistica         WHERE presupuesto_id = p.id), 0)
+  )`;
 
   try {
     const { rows } = await pool.query(`
@@ -32,24 +44,32 @@ router.get('/', auth, async (req, res) => {
         p.fecha_inicio, p.fecha_fin, p.iva_porcentaje, p.created_at,
         c.nombre AS cliente_nombre,
         r.nombre AS responsable_nombre,
-        cc.nombre AS contacto_nombre
+        cc.nombre AS contacto_nombre,
+        ${totalBrutoSQ} AS total_bruto
       FROM presupuestos p
       LEFT JOIN clientes c ON c.id = p.cliente_id
       LEFT JOIN responsables r ON r.id = p.responsable_id
       LEFT JOIN contactos_cliente cc ON cc.id = p.contacto_id
       ${where}
-      ORDER BY p.created_at DESC
+      ORDER BY p.fecha_presupuesto DESC, p.created_at DESC
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `, [...params, parseInt(limit), offset]);
 
-    const { rows: countRows } = await pool.query(
-      `SELECT COUNT(*) FROM presupuestos p
+    const { rows: aggRows } = await pool.query(
+      `SELECT COUNT(*) AS count, COALESCE(SUM(${totalBrutoSQ}), 0) AS importe_total
+       FROM presupuestos p
        LEFT JOIN clientes c ON c.id = p.cliente_id
        ${where}`,
       params
     );
 
-    res.json({ data: rows, total: parseInt(countRows[0].count), page: parseInt(page), limit: parseInt(limit) });
+    res.json({
+      data: rows,
+      total: parseInt(aggRows[0].count),
+      importe_total: parseFloat(aggRows[0].importe_total),
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
