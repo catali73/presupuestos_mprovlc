@@ -84,7 +84,7 @@ function LineaGeneral({ linea, onChange, onRemove, onMoveUp, onMoveDown, tarifas
       </td>
       <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.uds} onChange={e => handleChange('uds', e.target.value)} placeholder="1" /></td>
       <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.unidades} onChange={e => handleChange('unidades', e.target.value)} /></td>
-      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" step="0.5" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-20"><input className="input text-xs text-center" type="number" step="0.5" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right" type="number" value={linea.coste_jornada} onChange={e => handleChange('coste_jornada', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right bg-gray-50" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-14">
@@ -136,7 +136,7 @@ function LineaPersonal({ linea, onChange, onRemove, onMoveUp, onMoveDown, tarifa
       <td className="px-2 py-1.5 w-24">
         <input className="input text-xs text-right w-full" type="number" value={linea.tarifa} onChange={e => handleChange('tarifa', e.target.value)} />
       </td>
-      <td className="px-2 py-1.5 w-14">
+      <td className="px-2 py-1.5 w-20">
         <input className="input text-xs text-center w-full" type="number" step="0.5" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} />
       </td>
       <td className="px-2 py-1.5 w-14">
@@ -597,7 +597,7 @@ export default function PresupuestoForm() {
                     <th className="px-2 py-2 text-left text-gray-500">Descripción</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">UDS.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">UNID.</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">JORN.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-20">JORN.</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-28">COSTE JORN.</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-28">IMPORTE</th>
                     <th className="w-8" />
@@ -625,7 +625,7 @@ export default function PresupuestoForm() {
                     <th className="px-2 py-2 text-left text-gray-500">Posición / Descripción</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">UDS.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">UNID.</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">JORN.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-20">JORN.</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-28">TARIFA</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-28">IMPORTE</th>
                     <th className="w-8" />
@@ -653,7 +653,7 @@ export default function PresupuestoForm() {
                     <th className="px-2 py-2 text-left text-gray-500">Descripción</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">UDS.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">UNID.</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">JORN.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-20">JORN.</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-28">PRECIO</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-28">IMPORTE</th>
                     <th className="w-8" />
@@ -680,7 +680,7 @@ export default function PresupuestoForm() {
                   <thead><tr className="border-b border-gray-100 bg-gray-50">
                     <th className="px-2 py-2 text-left text-gray-500 w-48">Posición / Descripción</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-24">Tarifa</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-14">Jorn.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-20">Jorn.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-14">Nº PAX</th>
                     <th className="px-2 py-2 text-left text-gray-500 w-44">Dieta</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-14">NºDieta</th>
@@ -710,7 +710,7 @@ export default function PresupuestoForm() {
                   <thead><tr className="border-b border-gray-100 bg-gray-50">
                     <th className="px-2 py-2 text-left text-gray-500 w-48">Posición / Descripción</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-24">Tarifa</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-14">Jorn.</th>
+                    <th className="px-2 py-2 text-center text-gray-500 w-20">Jorn.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-14">Nº PAX</th>
                     <th className="px-2 py-2 text-left text-gray-500 w-44">Dieta</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-14">NºDieta</th>

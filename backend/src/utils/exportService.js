@@ -15,9 +15,25 @@ const NARANJA = 'FFED7D31';
 const GRIS_CLARO = 'FFF2F2F2';
 const BLANCO = 'FFFFFFFF';
 
-function formatCurrency(val) {
+// Formateador español fiable sin depender de ICU en Node.js
+function fmtES(val, withSymbol = false) {
   if (val == null || val === '') return '';
-  return parseFloat(val).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const num = parseFloat(val);
+  if (isNaN(num)) return '';
+  const [int, dec] = num.toFixed(2).split('.');
+  const intFmt = int.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return withSymbol ? `${intFmt},${dec} €` : `${intFmt},${dec}`;
+}
+
+function formatCurrency(val) {
+  return fmtES(val);
+}
+
+// Mínimo de filas en secciones PDF (rellena con filas vacías)
+function padRows(rows, minRows, colCount) {
+  const result = [...rows];
+  while (result.length < minRows) result.push(Array(colCount).fill(''));
+  return result;
 }
 
 function headerStyle(wb, color = ROJO) {
@@ -274,7 +290,7 @@ async function exportPdf(p) {
   const totalBruto = isGeneral ? calcTotalGeneral(p) : calcTotalPersonal(p);
   const iva = totalBruto * (parseFloat(p.iva_porcentaje) / 100);
   const total = totalBruto + iva;
-  const fmt = (v) => v != null && v !== '' ? parseFloat(v).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '';
+  const fmt = (v) => fmtES(v, true);
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 40, size: 'A4' });
@@ -381,20 +397,20 @@ async function exportPdf(p) {
       const cols = [W - 240, 40, 40, 40, 60, 60];
       const heads = ['DESCRIPCIÓN', 'UDS.', 'UNID.', 'JORN.', 'COSTE JORN.', 'IMPORTE'];
 
-      drawSection('EQUIPAMIENTO', heads, p.lineas_equipamiento.map(l => [
+      drawSection('EQUIPAMIENTO', heads, padRows(p.lineas_equipamiento.map(l => [
         l.descripcion, l.uds || '', l.unidades || '', l.jornadas || '',
         l.coste_jornada != null ? fmt(l.coste_jornada) : '', l.importe != null ? fmt(l.importe) : '',
-      ]), cols);
+      ]), 10, 6), cols);
 
-      drawSection('PERSONAL TÉCNICO', heads, p.lineas_personal_general.map(l => [
+      drawSection('PERSONAL TÉCNICO', heads, padRows(p.lineas_personal_general.map(l => [
         l.descripcion, l.uds || '', l.unidades || '', l.jornadas || '',
         l.coste_jornada != null ? fmt(l.coste_jornada) : '', l.importe != null ? fmt(l.importe) : '',
-      ]), cols);
+      ]), 10, 6), cols);
 
-      drawSection('LOGÍSTICA', heads, p.lineas_logistica.map(l => [
+      drawSection('LOGÍSTICA', heads, padRows(p.lineas_logistica.map(l => [
         l.descripcion, l.uds || '', l.unidades || '', l.jornadas || '',
         l.coste_jornada != null ? fmt(l.coste_jornada) : '', l.importe != null ? fmt(l.importe) : '',
-      ]), cols);
+      ]), 5, 6), cols);
     } else {
       const cols = [W - 280, 50, 40, 40, 50, 40, 60];
       const heads = ['PERSONAL', 'TARIFA', 'JORN.', 'Nº PAX', 'DIETA', 'NºDIETA', 'IMPORTE'];
