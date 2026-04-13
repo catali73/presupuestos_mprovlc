@@ -343,33 +343,38 @@ async function exportPdf(p) {
     const W = doc.page.width - 80; // ancho útil
 
     // ─── Cabecera ───────────────────────────────────────────────────────────
-    const LOGO_W = 72; // Solo ancho — pdfkit calcula alto proporcional
+    const LOGO_W = 144; // Doble de grande, proporciones respetadas
 
-    // Logo izquierda (proporciones originales respetadas)
+    // Logo izquierda — arriba del todo
     if (fs.existsSync(LOGO_PATH)) {
-      doc.image(LOGO_PATH, 40, 32, { width: LOGO_W });
+      doc.image(LOGO_PATH, 40, 22, { width: LOGO_W });
     }
 
     // Datos fiscales del cliente — derecha, alineados a la derecha
-    // Dirección y CP+ciudad en líneas separadas explícitas
+    // Siempre debajo del logo: empiezan en y=22 + alto estimado del logo + margen
+    // El logo Mediapro es cuadrado (1:1), así que alto ≈ LOGO_W
+    const LOGO_H_EST = LOGO_W; // proporción 1:1 del logo Mediapro
     const cli = p.cliente || {};
     const clienteLines = [
       cli.razon_social || cli.nombre || '',
       cli.cif || '',
-      cli.direccion || '',                                          // dirección (calle)
-      [cli.codigo_postal, cli.ciudad].filter(Boolean).join('  '),  // CP y ciudad — línea propia
+      cli.direccion || '',
+      [cli.codigo_postal, cli.ciudad].filter(Boolean).join('  '),
       cli.pais || '',
     ].filter(Boolean);
 
-    let cy = 32;
+    // Los datos del cliente van justificados a la derecha, centrados verticalmente con el logo
+    const clienteBlockH = clienteLines.length * 10;
+    const clienteStartY = 22 + Math.max(0, (LOGO_H_EST - clienteBlockH) / 2);
+    let cy = clienteStartY;
     doc.font('Helvetica').fontSize(7.5).fillColor('#333');
     clienteLines.forEach(line => {
       doc.text(line, 40 + LOGO_W + 10, cy, { width: W - LOGO_W - 10, align: 'right', lineBreak: false });
       cy += 10;
     });
 
-    // Línea separadora bajo la cabecera
-    const barY = 86;
+    // Línea separadora bajo la cabecera — siempre debajo del logo
+    const barY = 22 + LOGO_W + 8; // logo es cuadrado 1:1, así height ≈ LOGO_W
     doc.strokeColor('#e0e0e0').lineWidth(0.5).moveTo(40, barY - 4).lineTo(40 + W, barY - 4).stroke();
 
     // Caja roja/naranja con número y fecha
