@@ -345,7 +345,7 @@ async function exportPdf(p) {
     // ─── Cabecera ───────────────────────────────────────────────────────────
     // Logo recortado sin padding: 530×292px → ratio 1.816:1
     const LOGO_RATIO = 292 / 530; // height/width
-    const LOGO_W = 107; // 130 × 0.82 (-18%)
+    const LOGO_W = 91; // 107 × 0.85 (-15%)
     const LOGO_X = 30;
     const LOGO_Y = 8;
     const LOGO_H = Math.round(LOGO_W * LOGO_RATIO); // ~72pt
@@ -358,22 +358,24 @@ async function exportPdf(p) {
 
     // Datos fiscales del cliente — derecha, alineados a la derecha
     const cli = p.cliente || {};
+    // Dirección y CP+ciudad SIEMPRE en líneas separadas (no se fusionan)
     const clienteLines = [
       cli.razon_social || cli.nombre || '',
       cli.cif || '',
       cli.direccion || '',
-      [cli.codigo_postal, cli.ciudad].filter(Boolean).join('  '),
+      [cli.codigo_postal, cli.ciudad].filter(Boolean).join(' '),
       cli.pais || '',
-    ].filter(Boolean);
+    ].filter(line => line.trim() !== '');
 
-    // Centrados verticalmente con el logo
-    const clienteBlockH = clienteLines.length * 10;
-    const clienteStartY = LOGO_Y + Math.max(0, (LOGO_H - clienteBlockH) / 2);
-    let cy = clienteStartY;
+    const LINE_H = 11;
+    const textX = LOGO_X + LOGO_W + 8;
+    const textW = W - LOGO_W - 8;
+    const clienteStartY = LOGO_Y + Math.max(0, (LOGO_H - clienteLines.length * LINE_H) / 2);
+
     doc.font('Helvetica').fontSize(7.5).fillColor('#333');
-    clienteLines.forEach(line => {
-      doc.text(line, LOGO_X + LOGO_W + 8, cy, { width: W - LOGO_W - 8, align: 'right', lineBreak: false });
-      cy += 10;
+    // Índice explícito — cada línea tiene su propia coordenada Y calculada
+    clienteLines.forEach((line, i) => {
+      doc.text(line, textX, clienteStartY + i * LINE_H, { width: textW, align: 'right', lineBreak: false });
     });
     doc.strokeColor('#e0e0e0').lineWidth(0.5).moveTo(40, barY - 4).lineTo(40 + W, barY - 4).stroke();
 
