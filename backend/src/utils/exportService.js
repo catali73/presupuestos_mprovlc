@@ -343,29 +343,29 @@ async function exportPdf(p) {
     const W = doc.page.width - 80; // ancho útil
 
     // ─── Cabecera ───────────────────────────────────────────────────────────
-    const LOGO_H = 42;
-    const LOGO_W = 84;
+    const LOGO_W = 72; // Solo ancho — pdfkit calcula alto proporcional
 
-    // Logo izquierda (si existe el fichero)
+    // Logo izquierda (proporciones originales respetadas)
     if (fs.existsSync(LOGO_PATH)) {
-      doc.image(LOGO_PATH, 40, 36, { width: LOGO_W, height: LOGO_H });
+      doc.image(LOGO_PATH, 40, 32, { width: LOGO_W });
     }
 
     // Datos fiscales del cliente — derecha, alineados a la derecha
+    // Dirección y CP+ciudad en líneas separadas explícitas
     const cli = p.cliente || {};
     const clienteLines = [
       cli.razon_social || cli.nombre || '',
       cli.cif || '',
-      cli.direccion || '',
-      [cli.codigo_postal, cli.ciudad].filter(Boolean).join(' '),
+      cli.direccion || '',                                          // dirección (calle)
+      [cli.codigo_postal, cli.ciudad].filter(Boolean).join('  '),  // CP y ciudad — línea propia
       cli.pais || '',
     ].filter(Boolean);
 
-    let cy = 36;
+    let cy = 32;
     doc.font('Helvetica').fontSize(7.5).fillColor('#333');
     clienteLines.forEach(line => {
       doc.text(line, 40 + LOGO_W + 10, cy, { width: W - LOGO_W - 10, align: 'right', lineBreak: false });
-      cy += 9;
+      cy += 10;
     });
 
     // Línea separadora bajo la cabecera
