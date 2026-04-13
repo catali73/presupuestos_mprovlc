@@ -14,24 +14,23 @@ const STATUS_LABELS = {
 };
 
 function emptyLineaGeneral() {
-  return { descripcion: '', uds: '', unidades: '', jornadas: '', coste_jornada: '', importe: '' };
+  return { descripcion: '', unidades: '', jornadas: '', coste_jornada: '', importe: '' };
 }
 function emptyLineaPersonal() {
   return { descripcion: '', tarifa: '', jornadas: '', num_pax: '', dieta_tipo: '', dieta: '', num_dietas: '', importe: '', es_especial: false };
 }
 function emptyLineaLogisticaGeneral() {
-  return { descripcion: '', uds: '', unidades: '', jornadas: '', coste_jornada: '', importe: '' };
+  return { descripcion: '', unidades: '', jornadas: '', coste_jornada: '', importe: '' };
 }
 function emptyLineaLogisticaPersonal() {
   return { descripcion: '', cantidad: '', precio: '', importe: '' };
 }
 
 function calcImporteGeneral(l) {
-  const uds = parseFloat(l.uds) || 1;
   const unidades = parseFloat(l.unidades) || 0;
   const jornadas = parseFloat(l.jornadas) || 0;
   const coste = parseFloat(l.coste_jornada) || 0;
-  if (unidades && jornadas && coste) return (uds * unidades * jornadas * coste).toFixed(2);
+  if (unidades && jornadas && coste) return (unidades * jornadas * coste).toFixed(2);
   if (l.importe) return l.importe;
   return '';
 }
@@ -82,7 +81,6 @@ function LineaGeneral({ linea, onChange, onRemove, onMoveUp, onMoveDown, tarifas
           placeholder="Descripción o seleccionar..."
         />
       </td>
-      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.uds} onChange={e => handleChange('uds', e.target.value)} placeholder="1" /></td>
       <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.unidades} onChange={e => handleChange('unidades', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-20"><input className="input text-xs text-center" type="number" step="0.5" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right" type="number" value={linea.coste_jornada} onChange={e => handleChange('coste_jornada', e.target.value)} /></td>
@@ -595,7 +593,6 @@ export default function PresupuestoForm() {
                 <table className="w-full text-xs">
                   <thead><tr className="border-b border-gray-100 bg-gray-50">
                     <th className="px-2 py-2 text-left text-gray-500">Descripción</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">UDS.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">UNID.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-20">JORN.</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-28">COSTE JORN.</th>
@@ -623,7 +620,6 @@ export default function PresupuestoForm() {
                 <table className="w-full text-xs">
                   <thead><tr className="border-b border-gray-100 bg-gray-50">
                     <th className="px-2 py-2 text-left text-gray-500">Posición / Descripción</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">UDS.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">UNID.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-20">JORN.</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-28">TARIFA</th>
@@ -651,7 +647,6 @@ export default function PresupuestoForm() {
                 <table className="w-full text-xs">
                   <thead><tr className="border-b border-gray-100 bg-gray-50">
                     <th className="px-2 py-2 text-left text-gray-500">Descripción</th>
-                    <th className="px-2 py-2 text-center text-gray-500 w-16">UDS.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-16">UNID.</th>
                     <th className="px-2 py-2 text-center text-gray-500 w-20">JORN.</th>
                     <th className="px-2 py-2 text-right text-gray-500 w-28">PRECIO</th>

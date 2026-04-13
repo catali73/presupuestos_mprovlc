@@ -104,8 +104,7 @@ async function buildSheetGeneral(wb, p) {
 
   ws.columns = [
     { key: 'a', width: 3 },
-    { key: 'desc', width: 55 },
-    { key: 'uds', width: 7 },
+    { key: 'desc', width: 60 },
     { key: 'unid', width: 8 },
     { key: 'jorn', width: 8 },
     { key: 'coste', width: 16 },
@@ -113,34 +112,34 @@ async function buildSheetGeneral(wb, p) {
   ];
 
   // Cabecera
-  let r = ws.addRow(['', 'CLIENTE', '', '', '', '', '']);
+  let r = ws.addRow(['', 'CLIENTE', '', '', '', '']);
   applyStyles(r, sectionStyle(ROJO));
-  ws.addRow(['', p.cliente?.nombre || '', '', '', '', '', '']);
+  ws.addRow(['', p.cliente?.nombre || '', '', '', '', '']);
 
   const fechaStr = p.fecha_presupuesto ? new Date(p.fecha_presupuesto).toLocaleDateString('es-ES') : '';
-  ws.addRow(['', 'PROYECTO', '', '', '', 'PRESUPUESTO', p.numero]);
-  ws.addRow(['', p.evento || '', '', '', '', 'FECHA', fechaStr]);
-  ws.addRow(['', '', '', '', '', 'SOLICITADO', p.contacto?.nombre || '']);
+  ws.addRow(['', 'PROYECTO', '', '', 'PRESUPUESTO', p.numero]);
+  ws.addRow(['', p.evento || '', '', '', 'FECHA', fechaStr]);
+  ws.addRow(['', '', '', '', 'SOLICITADO', p.contacto?.nombre || '']);
   ws.addRow([]);
 
   // Cabecera columnas
-  r = ws.addRow(['', 'DESCRIPCIÓN', 'UDS.', 'UNID.', 'JORN.', 'COSTE JORNADA', 'IMPORTE']);
+  r = ws.addRow(['', 'DESCRIPCIÓN', 'UNID.', 'JORN.', 'COSTE JORNADA', 'IMPORTE']);
   applyStyles(r, headerStyle(wb, ROJO));
 
   function addLineasGeneral(lineas, titulo) {
-    const secRow = ws.addRow(['', titulo, '', '', '', '', '']);
+    const secRow = ws.addRow(['', titulo, '', '', '', '']);
     applyStyles(secRow, sectionStyle(ROJO));
-    ws.mergeCells(`B${secRow.number}:G${secRow.number}`);
+    ws.mergeCells(`B${secRow.number}:F${secRow.number}`);
 
     for (const l of lineas) {
       const dr = ws.addRow([
         '', l.descripcion,
-        l.uds || '', l.unidades || '', l.jornadas || '',
+        l.unidades || '', l.jornadas || '',
         l.coste_jornada != null ? formatCurrency(l.coste_jornada) : '',
         l.importe != null ? formatCurrency(l.importe) : '',
       ]);
       applyStyles(dr, dataStyle());
-      dr.getCell(7).numFmt = '#,##0.00';
+      dr.getCell(6).numFmt = '#,##0.00';
     }
   }
 
@@ -148,13 +147,13 @@ async function buildSheetGeneral(wb, p) {
   addLineasGeneral(p.lineas_personal_general, 'PERSONAL TÉCNICO');
 
   // Logística
-  const secLog = ws.addRow(['', 'LOGÍSTICA', '', '', '', '', '']);
+  const secLog = ws.addRow(['', 'LOGÍSTICA', '', '', '', '']);
   applyStyles(secLog, sectionStyle(ROJO));
-  ws.mergeCells(`B${secLog.number}:G${secLog.number}`);
+  ws.mergeCells(`B${secLog.number}:F${secLog.number}`);
   for (const l of p.lineas_logistica) {
     const dr = ws.addRow([
       '', l.descripcion,
-      l.uds || '', l.unidades || '', l.jornadas || '',
+      l.unidades || '', l.jornadas || '',
       l.coste_jornada != null ? formatCurrency(l.coste_jornada) : '',
       l.importe != null ? formatCurrency(l.importe) : '',
     ]);
@@ -168,12 +167,12 @@ async function buildSheetGeneral(wb, p) {
   const iva = totalBruto * (p.iva_porcentaje / 100);
   const total = totalBruto + iva;
 
-  const t1 = ws.addRow(['', 'TOTAL PRESUPUESTO', '', '', '', '', formatCurrency(totalBruto)]);
+  const t1 = ws.addRow(['', 'TOTAL PRESUPUESTO', '', '', '', formatCurrency(totalBruto)]);
   applyStyles(t1, totalStyle());
-  const t2 = ws.addRow(['', 'IVA', '', '', '', p.iva_porcentaje / 100, formatCurrency(iva)]);
+  const t2 = ws.addRow(['', 'IVA', '', '', p.iva_porcentaje / 100, formatCurrency(iva)]);
   applyStyles(t2, dataStyle(GRIS_CLARO));
-  t2.getCell(6).numFmt = '0%';
-  const t3 = ws.addRow(['', 'TOTAL', '', '', '', '', formatCurrency(total)]);
+  t2.getCell(5).numFmt = '0%';
+  const t3 = ws.addRow(['', 'TOTAL', '', '', '', formatCurrency(total)]);
   applyStyles(t3, totalStyle());
 
   ws.addRow([]);
@@ -394,23 +393,23 @@ async function exportPdf(p) {
     }
 
     if (isGeneral) {
-      const cols = [W - 240, 40, 40, 40, 60, 60];
-      const heads = ['DESCRIPCIÓN', 'UDS.', 'UNID.', 'JORN.', 'COSTE JORN.', 'IMPORTE'];
+      const cols = [W - 200, 40, 40, 60, 60];
+      const heads = ['DESCRIPCIÓN', 'UNID.', 'JORN.', 'COSTE JORN.', 'IMPORTE'];
 
       drawSection('EQUIPAMIENTO', heads, padRows(p.lineas_equipamiento.map(l => [
-        l.descripcion, l.uds || '', l.unidades || '', l.jornadas || '',
+        l.descripcion, l.unidades || '', l.jornadas || '',
         l.coste_jornada != null ? fmt(l.coste_jornada) : '', l.importe != null ? fmt(l.importe) : '',
-      ]), 10, 6), cols);
+      ]), 10, 5), cols);
 
       drawSection('PERSONAL TÉCNICO', heads, padRows(p.lineas_personal_general.map(l => [
-        l.descripcion, l.uds || '', l.unidades || '', l.jornadas || '',
+        l.descripcion, l.unidades || '', l.jornadas || '',
         l.coste_jornada != null ? fmt(l.coste_jornada) : '', l.importe != null ? fmt(l.importe) : '',
-      ]), 10, 6), cols);
+      ]), 10, 5), cols);
 
       drawSection('LOGÍSTICA', heads, padRows(p.lineas_logistica.map(l => [
-        l.descripcion, l.uds || '', l.unidades || '', l.jornadas || '',
+        l.descripcion, l.unidades || '', l.jornadas || '',
         l.coste_jornada != null ? fmt(l.coste_jornada) : '', l.importe != null ? fmt(l.importe) : '',
-      ]), 5, 6), cols);
+      ]), 5, 5), cols);
     } else {
       const cols = [W - 280, 50, 40, 40, 50, 40, 60];
       const heads = ['PERSONAL', 'TARIFA', 'JORN.', 'Nº PAX', 'DIETA', 'NºDIETA', 'IMPORTE'];
