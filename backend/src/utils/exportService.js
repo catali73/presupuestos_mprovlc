@@ -343,17 +343,21 @@ async function exportPdf(p) {
     const W = doc.page.width - 80; // ancho útil
 
     // ─── Cabecera ───────────────────────────────────────────────────────────
-    const LOGO_W = 144; // Doble de grande, proporciones respetadas
+    // El PNG de Mediapro es 1080×1080 con ~20% de padding blanco alrededor.
+    // El contenido visible ocupa ~60% del alto → visible ≈ LOGO_W * 0.6
+    const LOGO_W = 130;
+    const LOGO_X = 30;  // más a la izquierda del margen estándar
+    const LOGO_Y = 5;   // pegado al borde superior
 
-    // Logo izquierda — arriba del todo
     if (fs.existsSync(LOGO_PATH)) {
-      doc.image(LOGO_PATH, 40, 22, { width: LOGO_W });
+      doc.image(LOGO_PATH, LOGO_X, LOGO_Y, { width: LOGO_W });
     }
 
+    // barY se calcula sobre el contenido visible del logo, no el total del PNG
+    const LOGO_VISIBLE_H = Math.round(LOGO_W * 0.62); // ~80pt para LOGO_W=130
+    const barY = LOGO_Y + LOGO_VISIBLE_H + 6;
+
     // Datos fiscales del cliente — derecha, alineados a la derecha
-    // Siempre debajo del logo: empiezan en y=22 + alto estimado del logo + margen
-    // El logo Mediapro es cuadrado (1:1), así que alto ≈ LOGO_W
-    const LOGO_H_EST = LOGO_W; // proporción 1:1 del logo Mediapro
     const cli = p.cliente || {};
     const clienteLines = [
       cli.razon_social || cli.nombre || '',
@@ -363,18 +367,15 @@ async function exportPdf(p) {
       cli.pais || '',
     ].filter(Boolean);
 
-    // Los datos del cliente van justificados a la derecha, centrados verticalmente con el logo
+    // Centrados verticalmente en el espacio del logo visible
     const clienteBlockH = clienteLines.length * 10;
-    const clienteStartY = 22 + Math.max(0, (LOGO_H_EST - clienteBlockH) / 2);
+    const clienteStartY = LOGO_Y + Math.max(0, (LOGO_VISIBLE_H - clienteBlockH) / 2) + 4;
     let cy = clienteStartY;
     doc.font('Helvetica').fontSize(7.5).fillColor('#333');
     clienteLines.forEach(line => {
-      doc.text(line, 40 + LOGO_W + 10, cy, { width: W - LOGO_W - 10, align: 'right', lineBreak: false });
+      doc.text(line, LOGO_X + LOGO_W + 8, cy, { width: W - LOGO_W - 8, align: 'right', lineBreak: false });
       cy += 10;
     });
-
-    // Línea separadora bajo la cabecera — siempre debajo del logo
-    const barY = 22 + LOGO_W + 8; // logo es cuadrado 1:1, así height ≈ LOGO_W
     doc.strokeColor('#e0e0e0').lineWidth(0.5).moveTo(40, barY - 4).lineTo(40 + W, barY - 4).stroke();
 
     // Caja roja/naranja con número y fecha
