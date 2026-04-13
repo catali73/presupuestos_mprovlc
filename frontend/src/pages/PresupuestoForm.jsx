@@ -84,7 +84,7 @@ function LineaGeneral({ linea, onChange, onRemove, tarifas = [], listId = '' }) 
       </td>
       <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.uds} onChange={e => handleChange('uds', e.target.value)} placeholder="1" /></td>
       <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.unidades} onChange={e => handleChange('unidades', e.target.value)} /></td>
-      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" step="0.5" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right" type="number" value={linea.coste_jornada} onChange={e => handleChange('coste_jornada', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right bg-gray-50" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-8">
@@ -135,7 +135,7 @@ function LineaPersonal({ linea, onChange, onRemove, tarifasPersonas = [], tarifa
         <input className="input text-xs text-right w-full" type="number" value={linea.tarifa} onChange={e => handleChange('tarifa', e.target.value)} />
       </td>
       <td className="px-2 py-1.5 w-14">
-        <input className="input text-xs text-center w-full" type="number" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} />
+        <input className="input text-xs text-center w-full" type="number" step="0.5" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} />
       </td>
       <td className="px-2 py-1.5 w-14">
         <input className="input text-xs text-center w-full" type="number" value={linea.num_pax} onChange={e => handleChange('num_pax', e.target.value)} />

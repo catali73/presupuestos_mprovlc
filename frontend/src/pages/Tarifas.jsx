@@ -155,10 +155,11 @@ export default function Tarifas() {
         titulo="Tarifa Personas (por posición)"
         queryKey="tarifas-personas"
         endpoint="/tarifas/personas"
-        emptyForm={{ posicion: '', tarifa_dia: '', categoria: 'CONTRATADO' }}
-        columns={['Posición', 'Tarifa día', 'Tipología']}
+        emptyForm={{ posicion: '', tarifa_dia: '', categoria: 'CONTRATADO', orden: 0 }}
+        columns={['Ord.', 'Posición', 'Tarifa día', 'Tipología']}
         renderRow={row => (
           <>
+            <td className="table-td text-gray-400 text-xs w-12">{row.orden ?? 0}</td>
             <td className="table-td font-medium">{row.posicion}</td>
             <td className="table-td">{fmtMoney(row.tarifa_dia)}</td>
             <td className="table-td">
@@ -170,13 +171,19 @@ export default function Tarifas() {
         )}
         FormFields={({ form, setForm }) => (
           <>
-            <div>
-              <label className="label">Posición *</label>
-              <input className="input" value={form.posicion} onChange={e => setForm(f => ({ ...f, posicion: e.target.value }))} />
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className="label">Posición *</label>
+                <input className="input" value={form.posicion} onChange={e => setForm(f => ({ ...f, posicion: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Orden</label>
+                <input className="input" type="number" value={form.orden ?? 0} onChange={e => setForm(f => ({ ...f, orden: parseInt(e.target.value) || 0 }))} />
+              </div>
             </div>
             <div>
               <label className="label">Tarifa día *</label>
-              <input className="input" type="number" value={form.tarifa_dia} onChange={e => setForm(f => ({ ...f, tarifa_dia: e.target.value }))} />
+              <input className="input" type="number" step="0.01" value={form.tarifa_dia} onChange={e => setForm(f => ({ ...f, tarifa_dia: e.target.value }))} />
             </div>
             <div>
               <label className="label">Tipología *</label>

@@ -48,30 +48,30 @@ router.get('/personas', auth, async (req, res) => {
     params.push(categoria);
     query += ` AND categoria=$${params.length}`;
   }
-  query += ' ORDER BY categoria, posicion';
+  query += ' ORDER BY categoria, orden, posicion';
   const { rows } = await pool.query(query, params);
   res.json(rows);
 });
 
 router.post('/personas', auth, async (req, res) => {
-  const { posicion, tarifa_dia, categoria = 'CONTRATADO' } = req.body;
+  const { posicion, tarifa_dia, categoria = 'CONTRATADO', orden = 0 } = req.body;
   if (!posicion || tarifa_dia == null) {
     return res.status(400).json({ error: 'Posición y tarifa_dia son obligatorios' });
   }
   const { rows } = await pool.query(
-    'INSERT INTO tarifa_personas (posicion, tarifa_dia, categoria) VALUES ($1,$2,$3) RETURNING *',
-    [posicion, tarifa_dia, categoria]
+    'INSERT INTO tarifa_personas (posicion, tarifa_dia, categoria, orden) VALUES ($1,$2,$3,$4) RETURNING *',
+    [posicion, tarifa_dia, categoria, orden]
   );
   res.status(201).json(rows[0]);
 });
 
 router.put('/personas/:id', auth, async (req, res) => {
-  const { posicion, tarifa_dia, categoria, activo } = req.body;
+  const { posicion, tarifa_dia, categoria, orden, activo } = req.body;
   const { rows } = await pool.query(
     `UPDATE tarifa_personas
-     SET posicion=$1, tarifa_dia=$2, categoria=$3, activo=$4
-     WHERE id=$5 RETURNING *`,
-    [posicion, tarifa_dia, categoria || 'CONTRATADO', activo ?? true, req.params.id]
+     SET posicion=$1, tarifa_dia=$2, categoria=$3, orden=$4, activo=$5
+     WHERE id=$6 RETURNING *`,
+    [posicion, tarifa_dia, categoria || 'CONTRATADO', orden ?? 0, activo ?? true, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
   res.json(rows[0]);
