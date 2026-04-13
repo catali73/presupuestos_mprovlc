@@ -69,11 +69,11 @@ export default function Clientes() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-100">
-              <th className="table-th">Nombre</th>
-              <th className="table-th">Razón social / CIF</th>
-              <th className="table-th">Tipología</th>
+              <th className="table-th w-36">Nombre</th>
+              <th className="table-th w-64">Razón social / CIF</th>
+              <th className="table-th w-24">Tipología</th>
               <th className="table-th">Contactos</th>
-              <th className="table-th text-right">Acciones</th>
+              <th className="table-th w-20 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -127,9 +127,9 @@ export default function Clientes() {
                   <label className="label">Nombre *</label>
                   <input className="input" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
                 </div>
-                <div>
-                  <label className="label">Razón social</label>
-                  <input className="input" value={form.razon_social} onChange={e => setForm(f => ({ ...f, razon_social: e.target.value }))} />
+                <div className="col-span-2">
+                  <label className="label">Razón social (nombre fiscal)</label>
+                  <input className="input" placeholder="Empresa S.L.U." value={form.razon_social} onChange={e => setForm(f => ({ ...f, razon_social: e.target.value }))} />
                 </div>
                 <div>
                   <label className="label">CIF</label>
