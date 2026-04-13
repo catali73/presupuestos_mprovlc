@@ -345,7 +345,7 @@ async function exportPdf(p) {
     // ─── Cabecera ───────────────────────────────────────────────────────────
     // Logo recortado sin padding: 530×292px → ratio 1.816:1
     const LOGO_RATIO = 292 / 530; // height/width
-    const LOGO_W = 130;
+    const LOGO_W = 107; // 130 × 0.82 (-18%)
     const LOGO_X = 30;
     const LOGO_Y = 8;
     const LOGO_H = Math.round(LOGO_W * LOGO_RATIO); // ~72pt
