@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Copy, Download, ChevronDown, Search, Filter, X } from 'lucide-react';
+import { Plus, Copy, Download, ChevronDown, Search, Filter, X, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 
@@ -31,6 +31,7 @@ export default function Presupuestos() {
   const qc = useQueryClient();
   const [filters, setFilters] = useState(emptyFilters);
   const [showNewMenu, setShowNewMenu] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null); // { id, numero, evento }
 
   const { data, isLoading } = useQuery({
     queryKey: ['presupuestos', filters],
@@ -40,6 +41,11 @@ export default function Presupuestos() {
   const duplicate = useMutation({
     mutationFn: (id) => api.post(`/presupuestos/${id}/duplicate`),
     onSuccess: () => qc.invalidateQueries(['presupuestos']),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/presupuestos/${id}`),
+    onSuccess: () => { qc.invalidateQueries(['presupuestos']); setConfirmDelete(null); },
   });
 
   const exportDoc = async (id, formato) => {
@@ -217,6 +223,11 @@ export default function Presupuestos() {
                           className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-green-700"
                           onClick={() => exportDoc(p.id, 'excel')}
                         ><Download size={14} /></button>
+                        <button
+                          title="Eliminar"
+                          className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600"
+                          onClick={() => setConfirmDelete({ id: p.id, numero: p.numero, evento: p.evento })}
+                        ><Trash2 size={14} /></button>
                       </div>
                     </td>
                   </tr>
@@ -240,6 +251,39 @@ export default function Presupuestos() {
           </table>
         </div>
       </div>
+      {/* Modal confirmación de borrado */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="card w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 size={18} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Eliminar presupuesto</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{confirmDelete.numero}</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600">
+              ¿Seguro que quieres eliminar{' '}
+              <span className="font-medium">"{confirmDelete.evento || confirmDelete.numero}"</span>?
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3 justify-end pt-1">
+              <button
+                className="btn-secondary"
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleteMutation.isPending}
+              >Cancelar</button>
+              <button
+                className="btn-danger"
+                onClick={() => deleteMutation.mutate(confirmDelete.id)}
+                disabled={deleteMutation.isPending}
+              >{deleteMutation.isPending ? 'Eliminando...' : 'Sí, eliminar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
