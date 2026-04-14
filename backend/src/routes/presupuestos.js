@@ -338,6 +338,7 @@ router.post('/export-lote', auth, async (req, res) => {
       return res.send(buffer);
     }
   } catch (err) {
+    console.error('[export-lote]', err.message, err.stack);
     res.status(500).json({ error: err.message });
   }
 });

@@ -559,11 +559,13 @@ async function exportPdfLote(presupuestos) {
   const merged = await PDFDocument.create();
   for (const p of presupuestos) {
     const buf = await exportPdf(p);
-    const doc = await PDFDocument.load(buf);
-    const pages = await merged.copyPages(doc, doc.getPageIndices());
+    // ignoreEncryption resuelve incompatibilidad PDFKit → pdf-lib
+    const doc = await PDFDocument.load(buf, { ignoreEncryption: true });
+    const indices = doc.getPageIndices();
+    const pages = await merged.copyPages(doc, indices);
     pages.forEach(page => merged.addPage(page));
   }
-  return Buffer.from(await merged.save());
+  return Buffer.from(await merged.save({ useObjectStreams: false }));
 }
 
 module.exports = { exportExcel, exportPdf, exportExcelLote, exportPdfLote };
