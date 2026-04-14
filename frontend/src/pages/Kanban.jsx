@@ -53,7 +53,9 @@ export default function Kanban() {
   const handleDrop = async (e, colKey) => {
     e.preventDefault();
     setOverCol(null);
+    setDraggingId(null); // limpia sombra inmediatamente
     const card = dragCard.current;
+    dragCard.current = null;
     if (!card || card.fromStatus === colKey) return;
 
     // Optimistic update
