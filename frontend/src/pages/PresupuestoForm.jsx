@@ -8,9 +8,13 @@ import StatusBadge from '../components/StatusBadge';
 const DEPARTAMENTOS = ['CAMARAS_ESPECIALES', 'PRODUCCIONES_VLC', 'INTERNACIONAL', 'VALENCIA_MEDIA'];
 const TIPOLOGIAS = ['LIGA', 'CHAMPIONS', 'EVENTOS', 'PROGRAMAS'];
 const STATUSES = ['PREPARADO', 'ENVIADO', 'APROBADO', 'DESCARTADO', 'FACTURADO', 'PENDIENTE_FACTURAR'];
-const STATUS_LABELS = {
-  PREPARADO: 'Preparado', ENVIADO: 'Enviado', APROBADO: 'Aprobado',
-  DESCARTADO: 'Descartado', FACTURADO: 'Facturado', PENDIENTE_FACTURAR: 'Pte. Facturar',
+const STATUS_CONFIG = {
+  PREPARADO:          { label: 'Preparado',         dot: 'bg-gray-400',   badge: 'bg-gray-100 text-gray-700' },
+  ENVIADO:            { label: 'Enviado',            dot: 'bg-blue-500',   badge: 'bg-blue-100 text-blue-700' },
+  APROBADO:           { label: 'Aprobado',           dot: 'bg-green-500',  badge: 'bg-green-100 text-green-700' },
+  DESCARTADO:         { label: 'Descartado',         dot: 'bg-gray-400',   badge: 'bg-gray-200 text-gray-500' },
+  FACTURADO:          { label: 'Facturado',          dot: 'bg-purple-500', badge: 'bg-purple-100 text-purple-700' },
+  PENDIENTE_FACTURAR: { label: 'Pte. Facturar',     dot: 'bg-orange-400', badge: 'bg-orange-100 text-orange-700' },
 };
 
 function emptyLineaGeneral() {
@@ -239,6 +243,7 @@ export default function PresupuestoForm() {
   const [lineasLogistica, setLineasLogistica] = useState([]);
   const [lineasPersCont, setLineasPersCont] = useState([]);
   const [lineasPersAB, setLineasPersAB] = useState([]);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [emailTo, setEmailTo] = useState('');
   const [emailCc, setEmailCc] = useState('');
@@ -438,7 +443,6 @@ export default function PresupuestoForm() {
                 ? `Nuevo presupuesto — ${isGeneral ? 'General' : 'Personal Valencia'}`
                 : `Presupuesto ${presupuesto?.numero}`}
             </h1>
-            {!isNew && <StatusBadge status={form.status} />}
           </div>
           {!isNew && (
             <p className="text-sm text-gray-500 mt-0.5">
@@ -451,21 +455,37 @@ export default function PresupuestoForm() {
         <div className="flex items-center gap-2">
           {!isNew && (
             <>
-              <div className="relative group">
-                <button className="btn-secondary">
-                  Status <ChevronDown size={14} />
+              <div className="relative">
+                <button
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${STATUS_CONFIG[form.status]?.badge || 'bg-gray-100 text-gray-700'} border-transparent hover:brightness-95`}
+                  onClick={() => setShowStatusMenu(v => !v)}
+                >
+                  <span className={`w-2 h-2 rounded-full ${STATUS_CONFIG[form.status]?.dot || 'bg-gray-400'}`} />
+                  {STATUS_CONFIG[form.status]?.label || form.status}
+                  <ChevronDown size={13} />
                 </button>
-                <div className="absolute right-0 mt-1 w-48 card shadow-lg z-10 py-1 hidden group-hover:block">
-                  {STATUSES.map(s => (
-                    <button
-                      key={s}
-                      onClick={() => handleStatusChange(s)}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${form.status === s ? 'font-semibold text-red-700' : ''}`}
-                    >
-                      {STATUS_LABELS[s]}
-                    </button>
-                  ))}
-                </div>
+                {showStatusMenu && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowStatusMenu(false)} />
+                    <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1 overflow-hidden">
+                      {STATUSES.map(s => {
+                        const cfg = STATUS_CONFIG[s];
+                        const isActive = form.status === s;
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => { handleStatusChange(s); setShowStatusMenu(false); }}
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${isActive ? 'bg-gray-50 font-semibold' : 'hover:bg-gray-50'}`}
+                          >
+                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`} />
+                            <span className={isActive ? cfg.badge.split(' ')[1] : 'text-gray-700'}>{cfg.label}</span>
+                            {isActive && <span className="ml-auto text-gray-400">✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
               <button onClick={() => handleExport('excel')} className="btn-secondary">
                 <Download size={14} /> Excel
