@@ -140,7 +140,7 @@ function LineaPersonal({ linea, onChange, onRemove, onMoveUp, onMoveDown, tarifa
       <td className="px-2 py-1.5 w-14">
         <input className="input text-xs text-center w-full" type="number" value={linea.num_pax} onChange={e => handleChange('num_pax', e.target.value)} />
       </td>
-      <td className="px-2 py-1.5 w-44">
+      <td className="px-2 py-1.5 w-52">
         <div className="flex gap-1 items-center">
           <select
             className="select text-xs flex-1 min-w-0 py-1"
@@ -153,7 +153,7 @@ function LineaPersonal({ linea, onChange, onRemove, onMoveUp, onMoveDown, tarifa
             ))}
           </select>
           <input
-            className="input text-xs text-right w-16"
+            className="input text-xs text-right w-24"
             type="number"
             value={linea.dieta}
             onChange={e => handleChange('dieta', e.target.value)}
@@ -161,8 +161,8 @@ function LineaPersonal({ linea, onChange, onRemove, onMoveUp, onMoveDown, tarifa
           />
         </div>
       </td>
-      <td className="px-2 py-1.5 w-14">
-        <input className="input text-xs text-center w-full bg-gray-50" type="number" value={linea.num_dietas} onChange={e => handleChange('num_dietas', e.target.value)} readOnly title="Calculado: jornadas × nº pax" />
+      <td className="px-2 py-1.5 w-16">
+        <input className="input text-xs text-center w-full" type="number" value={linea.num_dietas} onChange={e => handleChange('num_dietas', e.target.value)} title="Auto: jornadas × nº pax (editable)" />
       </td>
       <td className="px-2 py-1.5 w-24">
         <input className="input text-xs text-right bg-gray-50 w-full" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} />
@@ -230,7 +230,7 @@ export default function PresupuestoForm() {
 
   const [form, setForm] = useState({
     tipo, cliente_id: '', contacto_id: '', responsable_id: '',
-    departamento: '', tipologia: '', evento: '', competicion: '',
+    departamento: '', tipologia: '', tipo_facturacion: '', evento: '', competicion: '',
     localizacion: '', fecha_inicio: '', fecha_fin: '',
     status: 'PREPARADO', iva_porcentaje: tipo === 'PERSONAL' ? 0 : 21, notas: '',
   });
@@ -272,6 +272,7 @@ export default function PresupuestoForm() {
         responsable_id: presupuesto.responsable_id || '',
         departamento: presupuesto.departamento || '',
         tipologia: presupuesto.tipologia || '',
+        tipo_facturacion: presupuesto.tipo_facturacion || '',
         evento: presupuesto.evento || '',
         competicion: presupuesto.competicion || '',
         localizacion: presupuesto.localizacion || '',
@@ -528,12 +529,21 @@ export default function PresupuestoForm() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="label">Tipología</label>
               <select className="select" value={form.tipologia} onChange={e => setForm(f => ({ ...f, tipologia: e.target.value }))}>
                 <option value="">Seleccionar</option>
                 {TIPOLOGIAS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Tipo de facturación</label>
+              <select className="select" value={form.tipo_facturacion} onChange={e => setForm(f => ({ ...f, tipo_facturacion: e.target.value }))}>
+                <option value="">Seleccionar</option>
+                <option value="Factura">Factura</option>
+                <option value="Descuento">Descuento</option>
+                <option value="Imputación">Imputación</option>
               </select>
             </div>
             <div>
