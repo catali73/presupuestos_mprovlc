@@ -396,18 +396,18 @@ async function insertLineas(client, pid, tipo, lineas) {
     for (const [i, l] of lineas_personal_contratado.entries()) {
       await client.query(`
         INSERT INTO lineas_personal_contratado
-          (presupuesto_id, descripcion, tarifa, jornadas, num_pax, dieta, num_dietas, importe, es_especial, orden)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+          (presupuesto_id, descripcion, tarifa, jornadas, num_pax, dieta_tipo, dieta, num_dietas, importe, es_especial, orden)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       `, [pid, l.descripcion, l.tarifa || null, l.jornadas || null, l.num_pax || null,
-          l.dieta || null, l.num_dietas || null, l.importe || null, l.es_especial || false, i]);
+          l.dieta_tipo || null, l.dieta || null, l.num_dietas || null, l.importe || null, l.es_especial || false, i]);
     }
     for (const [i, l] of lineas_personal_altas_bajas.entries()) {
       await client.query(`
         INSERT INTO lineas_personal_altas_bajas
-          (presupuesto_id, descripcion, tarifa, jornadas, num_pax, dieta, num_dietas, importe, orden)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+          (presupuesto_id, descripcion, tarifa, jornadas, num_pax, dieta_tipo, dieta, num_dietas, importe, orden)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       `, [pid, l.descripcion, l.tarifa || null, l.jornadas || null, l.num_pax || null,
-          l.dieta || null, l.num_dietas || null, l.importe || null, i]);
+          l.dieta_tipo || null, l.dieta || null, l.num_dietas || null, l.importe || null, i]);
     }
   }
 
@@ -443,14 +443,14 @@ async function duplicarLineas(client, origenId, destinoId, tipo) {
 
   if (tipo === 'PERSONAL') {
     await client.query(`
-      INSERT INTO lineas_personal_contratado (presupuesto_id, descripcion, tarifa, jornadas, num_pax, dieta, num_dietas, importe, es_especial, orden)
-      SELECT $1, descripcion, tarifa, jornadas, num_pax, dieta, num_dietas, importe, es_especial, orden
+      INSERT INTO lineas_personal_contratado (presupuesto_id, descripcion, tarifa, jornadas, num_pax, dieta_tipo, dieta, num_dietas, importe, es_especial, orden)
+      SELECT $1, descripcion, tarifa, jornadas, num_pax, dieta_tipo, dieta, num_dietas, importe, es_especial, orden
       FROM lineas_personal_contratado WHERE presupuesto_id=$2
     `, [destinoId, origenId]);
 
     await client.query(`
-      INSERT INTO lineas_personal_altas_bajas (presupuesto_id, descripcion, tarifa, jornadas, num_pax, dieta, num_dietas, importe, orden)
-      SELECT $1, descripcion, tarifa, jornadas, num_pax, dieta, num_dietas, importe, orden
+      INSERT INTO lineas_personal_altas_bajas (presupuesto_id, descripcion, tarifa, jornadas, num_pax, dieta_tipo, dieta, num_dietas, importe, orden)
+      SELECT $1, descripcion, tarifa, jornadas, num_pax, dieta_tipo, dieta, num_dietas, importe, orden
       FROM lineas_personal_altas_bajas WHERE presupuesto_id=$2
     `, [destinoId, origenId]);
   }
