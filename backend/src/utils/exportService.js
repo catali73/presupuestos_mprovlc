@@ -535,4 +535,33 @@ async function exportPdf(p) {
   });
 }
 
-module.exports = { exportExcel, exportPdf };
+// ─── EXPORT EXCEL LOTE (un workbook, una hoja por presupuesto) ───────────────
+
+async function exportExcelLote(presupuestos) {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = EMPRESA.nombre;
+  for (const p of presupuestos) {
+    if (p.tipo === 'GENERAL') {
+      await buildSheetGeneral(wb, p);
+    } else {
+      await buildSheetPersonal(wb, p);
+    }
+  }
+  return wb.xlsx.writeBuffer();
+}
+
+// ─── EXPORT PDF LOTE (merge de PDFs con pdf-lib) ─────────────────────────────
+
+async function exportPdfLote(presupuestos) {
+  const { PDFDocument } = require('pdf-lib');
+  const merged = await PDFDocument.create();
+  for (const p of presupuestos) {
+    const buf = await exportPdf(p);
+    const doc = await PDFDocument.load(buf);
+    const pages = await merged.copyPages(doc, doc.getPageIndices());
+    pages.forEach(page => merged.addPage(page));
+  }
+  return Buffer.from(await merged.save());
+}
+
+module.exports = { exportExcel, exportPdf, exportExcelLote, exportPdfLote };

@@ -2,13 +2,13 @@ const router = require('express').Router();
 const pool = require('../config/database');
 const auth = require('../middleware/auth');
 const generarNumero = require('../utils/numeroPresupuesto');
-const { exportExcel, exportPdf } = require('../utils/exportService');
+const { exportExcel, exportPdf, exportExcelLote, exportPdfLote } = require('../utils/exportService');
 const emailService = require('../utils/emailService');
 
 // ─── LISTADO con filtros ──────────────────────────────────────────────────────
-// GET /api/presupuestos?status=&departamento=&tipo=&search=&anyo=&trimestre=&mes=&page=&limit=
+// GET /api/presupuestos?status=&departamento=&tipo=&search=&anyo=&trimestre=&mes=&semana=&page=&limit=
 router.get('/', auth, async (req, res) => {
-  const { status, responsable_id, departamento, tipo, search, anyo, trimestre, mes, page = 1, limit = 50 } = req.query;
+  const { status, responsable_id, departamento, tipo, search, anyo, trimestre, mes, semana, page = 1, limit = 50 } = req.query;
   const conditions = [];
   const params = [];
 
@@ -19,6 +19,7 @@ router.get('/', auth, async (req, res) => {
   if (anyo)           { params.push(parseInt(anyo)); conditions.push(`EXTRACT(YEAR FROM p.fecha_presupuesto) = $${params.length}`); }
   if (trimestre)      { params.push(parseInt(trimestre)); conditions.push(`EXTRACT(QUARTER FROM p.fecha_presupuesto) = $${params.length}`); }
   if (mes)            { params.push(parseInt(mes));  conditions.push(`EXTRACT(MONTH FROM p.fecha_presupuesto) = $${params.length}`); }
+  if (semana)         { params.push(parseInt(semana)); conditions.push(`p.semana = $${params.length}`); }
   if (search) {
     params.push(`%${search}%`);
     conditions.push(`(p.evento ILIKE $${params.length} OR p.numero ILIKE $${params.length} OR c.nombre ILIKE $${params.length})`);
@@ -308,6 +309,34 @@ router.post('/:id/send-email', auth, async (req, res) => {
     }
 
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── EXPORT LOTE (PDF combinado o Excel multi-hoja) ──────────────────────────
+// POST /api/presupuestos/export-lote
+router.post('/export-lote', auth, async (req, res) => {
+  const { ids, formato = 'pdf' } = req.body;
+  if (!ids?.length) return res.status(400).json({ error: 'ids requerido' });
+
+  try {
+    const presupuestos = await Promise.all(ids.map(id => getPresupuestoCompleto(id)));
+    const validos = presupuestos.filter(Boolean);
+
+    if (formato === 'excel') {
+      const buffer = await exportExcelLote(validos);
+      const semana = validos[0]?.semana ? `_S${validos[0].semana}` : '';
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="presupuestos_lote${semana}.xlsx"`);
+      return res.send(buffer);
+    } else {
+      const buffer = await exportPdfLote(validos);
+      const semana = validos[0]?.semana ? `_S${validos[0].semana}` : '';
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="presupuestos_lote${semana}.pdf"`);
+      return res.send(buffer);
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
