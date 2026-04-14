@@ -354,21 +354,29 @@ export default function PresupuestoForm() {
     URL.revokeObjectURL(url);
   };
 
-  const handleSendEmail = async () => {
+  const handleAbrirOutlook = async () => {
     setSendLoading(true);
     try {
-      await api.post(`/presupuestos/${id}/send-email`, {
-        to: emailTo,
-        cc: emailCc || undefined,
-        asunto: emailAsunto,
-        mensaje: emailMensaje,
-        formato: 'pdf',
-      });
+      // 1. Descargar PDF automáticamente
+      const res = await api.get(`/presupuestos/${id}/export/pdf`, { responseType: 'blob' });
+      const blobUrl = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `presupuesto_${presupuesto?.numero}.pdf`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+
+      // 2. Abrir Outlook con campos pre-rellenados vía mailto:
+      const parts = [];
+      if (emailCc) parts.push(`cc=${encodeURIComponent(emailCc)}`);
+      if (emailAsunto) parts.push(`subject=${encodeURIComponent(emailAsunto)}`);
+      if (emailMensaje) parts.push(`body=${encodeURIComponent(emailMensaje)}`);
+      const mailto = `mailto:${encodeURIComponent(emailTo)}${parts.length ? '?' + parts.join('&') : ''}`;
+      window.location.href = mailto;
+
       setEmailSent(true);
-      qc.invalidateQueries(['presupuesto', id]);
-      qc.invalidateQueries(['presupuestos']);
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al enviar');
+      alert('Error al descargar el PDF: ' + (err.response?.data?.error || err.message));
     } finally {
       setSendLoading(false);
     }
@@ -771,26 +779,29 @@ export default function PresupuestoForm() {
         </div>
       </div>
 
-      {/* Modal envío email */}
+      {/* Modal envío email vía Outlook */}
       {showSendModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-lg p-6 space-y-4">
             {emailSent ? (
-              /* ── Estado enviado ── */
+              /* ── Confirmación ── */
               <div className="text-center py-6 space-y-3">
                 <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto">
                   <Send size={22} className="text-green-600" />
                 </div>
-                <p className="font-semibold text-gray-900">Email enviado correctamente</p>
-                <p className="text-sm text-gray-500">El presupuesto se ha enviado a <strong>{emailTo}</strong></p>
+                <p className="font-semibold text-gray-900">Outlook abierto</p>
+                <p className="text-sm text-gray-500">
+                  El PDF se ha descargado y Outlook se ha abierto con los datos pre-rellenados.
+                  <br />Adjunta el PDF y envía el email.
+                </p>
                 <button className="btn-primary mt-2" onClick={() => setShowSendModal(false)}>Cerrar</button>
               </div>
             ) : (
               /* ── Formulario ── */
               <>
                 <div className="flex items-center justify-between">
-                  <h2 className="font-semibold text-gray-900">Enviar presupuesto por email</h2>
-                  <button onClick={() => setShowSendModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+                  <h2 className="font-semibold text-gray-900">Preparar email en Outlook</h2>
+                  <button onClick={() => setShowSendModal(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
                 </div>
 
                 <div>
@@ -830,28 +841,30 @@ export default function PresupuestoForm() {
                   <label className="label">Mensaje</label>
                   <textarea
                     className="input"
-                    rows={6}
+                    rows={5}
                     value={emailMensaje}
                     onChange={e => setEmailMensaje(e.target.value)}
                     placeholder="Escribe el mensaje aquí..."
                   />
                 </div>
 
-                {/* Indicador adjunto */}
-                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
-                  <Download size={13} className="text-gray-400 shrink-0" />
-                  <span>Se adjuntará el PDF del presupuesto <strong>{presupuesto?.numero}</strong></span>
+                {/* Aviso flujo */}
+                <div className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                  <Download size={13} className="shrink-0 mt-0.5" />
+                  <span>
+                    Al pulsar <strong>Abrir en Outlook</strong> se descargará el PDF <strong>{presupuesto?.numero}</strong> y se abrirá Outlook con los campos rellenados. Solo tienes que adjuntar el PDF y enviar.
+                  </span>
                 </div>
 
                 <div className="flex gap-3 justify-end pt-1">
                   <button className="btn-secondary" onClick={() => setShowSendModal(false)}>Cancelar</button>
                   <button
                     className="btn-primary"
-                    onClick={handleSendEmail}
+                    onClick={handleAbrirOutlook}
                     disabled={sendLoading || !emailTo || !emailAsunto}
                   >
                     <Send size={14} />
-                    {sendLoading ? 'Enviando...' : 'Enviar'}
+                    {sendLoading ? 'Descargando PDF...' : 'Abrir en Outlook'}
                   </button>
                 </div>
               </>
