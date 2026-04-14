@@ -29,8 +29,8 @@ export default function Layout({ children }) {
               <FileText size={16} className="text-white" />
             </div>
             <div>
-              <p className="font-bold text-sm leading-tight">CCEE</p>
-              <p className="text-gray-400 text-xs">Presupuestos</p>
+              <p className="font-bold text-sm leading-tight">Presupuestos</p>
+              <p className="text-gray-400 text-xs">MPRO VLC</p>
             </div>
           </div>
         </div>

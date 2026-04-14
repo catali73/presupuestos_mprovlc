@@ -33,7 +33,7 @@ export default function Login() {
           <div className="w-14 h-14 bg-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <FileText size={28} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">CCEE Presupuestos</h1>
+          <h1 className="text-2xl font-bold text-white">Presupuestos MPRO VLC</h1>
           <p className="text-gray-400 text-sm mt-1">Accede con tu cuenta</p>
         </div>
 
