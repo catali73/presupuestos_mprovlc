@@ -31,23 +31,18 @@ router.get('/', auth, async (req, res) => {
       ORDER BY status
     `, params);
 
-    // Totales importe por status (suma de líneas)
+    // Totales importe por status — subconsultas por tabla para evitar producto cartesiano
     const { rows: importes } = await pool.query(`
       SELECT
         p.status,
-        ROUND(
-          COALESCE(SUM(le.importe), 0) +
-          COALESCE(SUM(lpg.importe), 0) +
-          COALESCE(SUM(ll.importe), 0) +
-          COALESCE(SUM(lpc.importe), 0) +
-          COALESCE(SUM(lpab.importe), 0), 2
-        ) AS total_bruto
+        ROUND(SUM(
+          COALESCE((SELECT SUM(importe) FROM lineas_equipamiento        WHERE presupuesto_id = p.id), 0) +
+          COALESCE((SELECT SUM(importe) FROM lineas_personal_general    WHERE presupuesto_id = p.id), 0) +
+          COALESCE((SELECT SUM(importe) FROM lineas_logistica           WHERE presupuesto_id = p.id), 0) +
+          COALESCE((SELECT SUM(importe) FROM lineas_personal_contratado WHERE presupuesto_id = p.id), 0) +
+          COALESCE((SELECT SUM(importe) FROM lineas_personal_altas_bajas WHERE presupuesto_id = p.id), 0)
+        ), 2) AS total_bruto
       FROM presupuestos p
-      LEFT JOIN lineas_equipamiento le ON le.presupuesto_id = p.id
-      LEFT JOIN lineas_personal_general lpg ON lpg.presupuesto_id = p.id
-      LEFT JOIN lineas_logistica ll ON ll.presupuesto_id = p.id
-      LEFT JOIN lineas_personal_contratado lpc ON lpc.presupuesto_id = p.id
-      LEFT JOIN lineas_personal_altas_bajas lpab ON lpab.presupuesto_id = p.id
       ${where}
       GROUP BY p.status
     `, params);
