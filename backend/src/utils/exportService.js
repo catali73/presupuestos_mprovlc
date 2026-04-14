@@ -104,7 +104,8 @@ async function exportExcel(p) {
 }
 
 async function buildSheetGeneral(wb, p) {
-  const ws = wb.addWorksheet('Presupuesto', { pageSetup: { fitToPage: true } });
+  const sheetName = (p.numero || 'Presupuesto').slice(0, 31);
+  const ws = wb.addWorksheet(sheetName, { pageSetup: { fitToPage: true } });
 
   ws.columns = [
     { key: 'a', width: 3 },
@@ -211,7 +212,8 @@ async function buildSheetGeneral(wb, p) {
 }
 
 async function buildSheetPersonal(wb, p) {
-  const ws = wb.addWorksheet('Presupuesto Personal', { pageSetup: { fitToPage: true } });
+  const sheetName = (p.numero || 'Presupuesto Personal').slice(0, 31);
+  const ws = wb.addWorksheet(sheetName, { pageSetup: { fitToPage: true } });
 
   ws.columns = [
     { key: 'a', width: 3 },
