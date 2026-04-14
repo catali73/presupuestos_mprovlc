@@ -412,7 +412,7 @@ async function exportPdf(p) {
       doc.font('Helvetica-Bold').text('FECHAS:', 350, y, { lineBreak: false });
       const fi = p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString('es-ES') : '';
       const ff = p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString('es-ES') : '';
-      doc.font('Helvetica').text(`${fi}${fi && ff ? ' → ' : ''}${ff}`, 430, y, { lineBreak: false });
+      doc.font('Helvetica').text(`${fi}${fi && ff ? ' - ' : ''}${ff}`, 430, y, { lineBreak: false });
     }
     y += 20;
 
