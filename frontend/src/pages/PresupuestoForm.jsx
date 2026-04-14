@@ -230,7 +230,7 @@ export default function PresupuestoForm() {
 
   const [form, setForm] = useState({
     tipo, cliente_id: '', contacto_id: '', responsable_id: '',
-    departamento: '', tipologia: '', tipo_facturacion: '', evento: '', competicion: '',
+    departamento: '', tipologia: '', tipo_facturacion: '', semana: '', evento: '', competicion: '',
     localizacion: '', fecha_inicio: '', fecha_fin: '',
     status: 'PREPARADO', iva_porcentaje: tipo === 'PERSONAL' ? 0 : 21, notas: '',
   });
@@ -273,6 +273,7 @@ export default function PresupuestoForm() {
         departamento: presupuesto.departamento || '',
         tipologia: presupuesto.tipologia || '',
         tipo_facturacion: presupuesto.tipo_facturacion || '',
+        semana: presupuesto.semana || '',
         evento: presupuesto.evento || '',
         competicion: presupuesto.competicion || '',
         localizacion: presupuesto.localizacion || '',
@@ -564,10 +565,19 @@ export default function PresupuestoForm() {
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div>
               <label className="label">Localización</label>
               <input className="input" value={form.localizacion} onChange={e => setForm(f => ({ ...f, localizacion: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Semana</label>
+              <select className="select" value={form.semana} onChange={e => setForm(f => ({ ...f, semana: e.target.value }))}>
+                <option value="">—</option>
+                {Array.from({ length: 53 }, (_, i) => i + 1).map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="label">Fecha inicio</label>

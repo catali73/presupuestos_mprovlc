@@ -92,7 +92,7 @@ router.get('/:id', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   const {
     tipo, cliente_id, contacto_id, responsable_id,
-    departamento, tipologia, tipo_facturacion, evento, competicion, localizacion,
+    departamento, tipologia, tipo_facturacion, semana, evento, competicion, localizacion,
     fecha_inicio, fecha_fin, iva_porcentaje = 21, notas,
     lineas_equipamiento = [], lineas_personal_general = [], lineas_logistica = [],
     lineas_personal_contratado = [], lineas_personal_altas_bajas = [],
@@ -111,13 +111,13 @@ router.post('/', auth, async (req, res) => {
     const { rows } = await client.query(`
       INSERT INTO presupuestos
         (numero, tipo, cliente_id, contacto_id, responsable_id, departamento, tipologia,
-         tipo_facturacion, evento, competicion, localizacion, fecha_inicio, fecha_fin, iva_porcentaje, notas)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+         tipo_facturacion, semana, evento, competicion, localizacion, fecha_inicio, fecha_fin, iva_porcentaje, notas)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       RETURNING *
     `, [
       numero, tipo,
       cliente_id || null, contacto_id || null, responsable_id || null,
-      departamento || null, tipologia || null, tipo_facturacion || null,
+      departamento || null, tipologia || null, tipo_facturacion || null, semana || null,
       evento || null, competicion || null, localizacion || null,
       fecha_inicio || null, fecha_fin || null, iva_porcentaje, notas || null,
     ]);
@@ -143,7 +143,7 @@ router.post('/', auth, async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
   const {
     tipo, cliente_id, contacto_id, responsable_id,
-    departamento, tipologia, tipo_facturacion, evento, competicion, localizacion,
+    departamento, tipologia, tipo_facturacion, semana, evento, competicion, localizacion,
     fecha_inicio, fecha_fin, status, iva_porcentaje, notas,
     lineas_equipamiento = [], lineas_personal_general = [], lineas_logistica = [],
     lineas_personal_contratado = [], lineas_personal_altas_bajas = [],
@@ -156,13 +156,13 @@ router.put('/:id', auth, async (req, res) => {
     await client.query(`
       UPDATE presupuestos SET
         tipo=$1, cliente_id=$2, contacto_id=$3, responsable_id=$4,
-        departamento=$5, tipologia=$6, tipo_facturacion=$7, evento=$8, competicion=$9,
-        localizacion=$10, fecha_inicio=$11, fecha_fin=$12,
-        status=$13, iva_porcentaje=$14, notas=$15
-      WHERE id=$16
+        departamento=$5, tipologia=$6, tipo_facturacion=$7, semana=$8,
+        evento=$9, competicion=$10, localizacion=$11, fecha_inicio=$12, fecha_fin=$13,
+        status=$14, iva_porcentaje=$15, notas=$16
+      WHERE id=$17
     `, [
       tipo, cliente_id || null, contacto_id || null, responsable_id || null,
-      departamento || null, tipologia || null, tipo_facturacion || null,
+      departamento || null, tipologia || null, tipo_facturacion || null, semana || null,
       evento || null, competicion || null,
       localizacion || null, fecha_inicio || null, fecha_fin || null,
       status, iva_porcentaje, notas || null, req.params.id,
