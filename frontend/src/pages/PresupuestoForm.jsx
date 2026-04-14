@@ -241,7 +241,10 @@ export default function PresupuestoForm() {
   const [lineasPersAB, setLineasPersAB] = useState([]);
   const [showSendModal, setShowSendModal] = useState(false);
   const [emailTo, setEmailTo] = useState('');
+  const [emailCc, setEmailCc] = useState('');
+  const [emailAsunto, setEmailAsunto] = useState('');
   const [emailMensaje, setEmailMensaje] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
   const [templateCargada, setTemplateCargada] = useState(false);
@@ -355,9 +358,13 @@ export default function PresupuestoForm() {
     setSendLoading(true);
     try {
       await api.post(`/presupuestos/${id}/send-email`, {
-        to: emailTo, mensaje: emailMensaje, formato: 'pdf',
+        to: emailTo,
+        cc: emailCc || undefined,
+        asunto: emailAsunto,
+        mensaje: emailMensaje,
+        formato: 'pdf',
       });
-      setShowSendModal(false);
+      setEmailSent(true);
       qc.invalidateQueries(['presupuesto', id]);
       qc.invalidateQueries(['presupuestos']);
     } catch (err) {
@@ -456,7 +463,14 @@ export default function PresupuestoForm() {
               <button onClick={() => handleExport('pdf')} className="btn-secondary">
                 <Download size={14} /> PDF
               </button>
-              <button onClick={() => { setEmailTo(clienteSeleccionado?.contactos?.[0]?.email || ''); setShowSendModal(true); }} className="btn-secondary">
+              <button onClick={() => {
+                setEmailTo(clienteSeleccionado?.contactos?.[0]?.email || '');
+                setEmailCc('');
+                setEmailAsunto(`Presupuesto ${form.evento || presupuesto?.numero || ''}`);
+                setEmailMensaje('');
+                setEmailSent(false);
+                setShowSendModal(true);
+              }} className="btn-secondary">
                 <Send size={14} /> Enviar
               </button>
             </>
@@ -759,23 +773,89 @@ export default function PresupuestoForm() {
 
       {/* Modal envío email */}
       {showSendModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="card w-full max-w-md p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Enviar presupuesto por email</h2>
-            <div>
-              <label className="label">Para *</label>
-              <input className="input" type="email" value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="cliente@email.com" />
-            </div>
-            <div>
-              <label className="label">Mensaje</label>
-              <textarea className="input" rows={3} value={emailMensaje} onChange={e => setEmailMensaje(e.target.value)} placeholder="Texto del email..." />
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button className="btn-secondary" onClick={() => setShowSendModal(false)}>Cancelar</button>
-              <button className="btn-primary" onClick={handleSendEmail} disabled={sendLoading || !emailTo}>
-                <Send size={14} /> {sendLoading ? 'Enviando...' : 'Enviar PDF'}
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="card w-full max-w-lg p-6 space-y-4">
+            {emailSent ? (
+              /* ── Estado enviado ── */
+              <div className="text-center py-6 space-y-3">
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+                  <Send size={22} className="text-green-600" />
+                </div>
+                <p className="font-semibold text-gray-900">Email enviado correctamente</p>
+                <p className="text-sm text-gray-500">El presupuesto se ha enviado a <strong>{emailTo}</strong></p>
+                <button className="btn-primary mt-2" onClick={() => setShowSendModal(false)}>Cerrar</button>
+              </div>
+            ) : (
+              /* ── Formulario ── */
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="font-semibold text-gray-900">Enviar presupuesto por email</h2>
+                  <button onClick={() => setShowSendModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+                </div>
+
+                <div>
+                  <label className="label">Para *</label>
+                  <input
+                    className="input"
+                    type="email"
+                    value={emailTo}
+                    onChange={e => setEmailTo(e.target.value)}
+                    placeholder="destinatario@empresa.com"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="label">CC <span className="text-gray-400 font-normal">(opcional)</span></label>
+                  <input
+                    className="input"
+                    type="email"
+                    value={emailCc}
+                    onChange={e => setEmailCc(e.target.value)}
+                    placeholder="copia@empresa.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="label">Asunto *</label>
+                  <input
+                    className="input"
+                    type="text"
+                    value={emailAsunto}
+                    onChange={e => setEmailAsunto(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="label">Mensaje</label>
+                  <textarea
+                    className="input"
+                    rows={6}
+                    value={emailMensaje}
+                    onChange={e => setEmailMensaje(e.target.value)}
+                    placeholder="Escribe el mensaje aquí..."
+                  />
+                </div>
+
+                {/* Indicador adjunto */}
+                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+                  <Download size={13} className="text-gray-400 shrink-0" />
+                  <span>Se adjuntará el PDF del presupuesto <strong>{presupuesto?.numero}</strong></span>
+                </div>
+
+                <div className="flex gap-3 justify-end pt-1">
+                  <button className="btn-secondary" onClick={() => setShowSendModal(false)}>Cancelar</button>
+                  <button
+                    className="btn-primary"
+                    onClick={handleSendEmail}
+                    disabled={sendLoading || !emailTo || !emailAsunto}
+                  >
+                    <Send size={14} />
+                    {sendLoading ? 'Enviando...' : 'Enviar'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
