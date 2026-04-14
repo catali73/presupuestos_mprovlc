@@ -1,12 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, FileText, Users, Settings, LogOut, ChevronRight, Building2
+  LayoutDashboard, FileText, Users, Settings, LogOut, ChevronRight, Building2, KanbanSquare
 } from 'lucide-react';
 
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/presupuestos', label: 'Presupuestos', icon: FileText },
+  { to: '/kanban', label: 'Estado', icon: KanbanSquare },
   { to: '/clientes', label: 'Clientes', icon: Building2 },
   { to: '/tablas', label: 'Tarifas & Equipos', icon: Settings },
   { to: '/responsables', label: 'Responsables', icon: Users },
