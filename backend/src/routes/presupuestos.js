@@ -8,27 +8,33 @@ const emailService = require('../utils/emailService');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-// ─── LISTADO con filtros ──────────────────────────────────────────────────────
-// GET /api/presupuestos?status=&departamento=&tipo=&search=&anyo=&trimestre=&mes=&semana=&page=&limit=
-router.get('/', auth, async (req, res) => {
-  const { status, responsable_id, departamento, tipo, search, anyo, trimestre, mes, semana, page = 1, limit = 50 } = req.query;
+// ─── HELPER: construir condiciones de filtro compartidas ─────────────────────
+function buildFilters(query) {
+  const { status, cliente_id, responsable_id, departamento, tipo, search, anyo, trimestre, mes, semana } = query;
   const conditions = [];
   const params = [];
 
-  if (status)         { params.push(status);        conditions.push(`p.status = $${params.length}`); }
-  if (responsable_id) { params.push(responsable_id); conditions.push(`p.responsable_id = $${params.length}`); }
-  if (departamento)   { params.push(departamento);   conditions.push(`p.departamento = $${params.length}`); }
-  if (tipo)           { params.push(tipo);           conditions.push(`p.tipo = $${params.length}`); }
-  if (anyo)           { params.push(parseInt(anyo)); conditions.push(`EXTRACT(YEAR FROM p.fecha_presupuesto) = $${params.length}`); }
+  if (status)         { params.push(status);             conditions.push(`p.status = $${params.length}`); }
+  if (cliente_id)     { params.push(parseInt(cliente_id)); conditions.push(`p.cliente_id = $${params.length}`); }
+  if (responsable_id) { params.push(responsable_id);     conditions.push(`p.responsable_id = $${params.length}`); }
+  if (departamento)   { params.push(departamento);       conditions.push(`p.departamento = $${params.length}`); }
+  if (tipo)           { params.push(tipo);               conditions.push(`p.tipo = $${params.length}`); }
+  if (anyo)           { params.push(parseInt(anyo));     conditions.push(`EXTRACT(YEAR FROM p.fecha_presupuesto) = $${params.length}`); }
   if (trimestre)      { params.push(parseInt(trimestre)); conditions.push(`EXTRACT(QUARTER FROM p.fecha_presupuesto) = $${params.length}`); }
-  if (mes)            { params.push(parseInt(mes));  conditions.push(`EXTRACT(MONTH FROM p.fecha_presupuesto) = $${params.length}`); }
-  if (semana)         { params.push(parseInt(semana)); conditions.push(`p.semana = $${params.length}`); }
+  if (mes)            { params.push(parseInt(mes));      conditions.push(`EXTRACT(MONTH FROM p.fecha_presupuesto) = $${params.length}`); }
+  if (semana)         { params.push(parseInt(semana));   conditions.push(`p.semana = $${params.length}`); }
   if (search) {
     params.push(`%${search}%`);
     conditions.push(`(p.evento ILIKE $${params.length} OR p.numero ILIKE $${params.length} OR c.nombre ILIKE $${params.length})`);
   }
+  return { conditions, params, where: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '' };
+}
 
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+// ─── LISTADO con filtros ──────────────────────────────────────────────────────
+// GET /api/presupuestos?status=&cliente_id=&departamento=&tipo=&search=&anyo=&trimestre=&mes=&semana=&page=&limit=
+router.get('/', auth, async (req, res) => {
+  const { params, where } = buildFilters(req.query);
+  const { page = 1, limit = 50 } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
 
   // Subquery para calcular total_bruto de cada presupuesto sumando todas las tablas de líneas
@@ -74,6 +80,129 @@ router.get('/', auth, async (req, res) => {
       page: parseInt(page),
       limit: parseInt(limit),
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── EXPORTAR LISTA FILTRADA A EXCEL ─────────────────────────────────────────
+// GET /api/presupuestos/export-lista
+router.get('/export-lista', auth, async (req, res) => {
+  const { params, where } = buildFilters(req.query);
+  const ExcelJS = require('exceljs');
+
+  const totalBrutoSQ = `(
+    COALESCE((SELECT SUM(importe) FROM lineas_equipamiento        WHERE presupuesto_id = p.id), 0) +
+    COALESCE((SELECT SUM(importe) FROM lineas_personal_general    WHERE presupuesto_id = p.id), 0) +
+    COALESCE((SELECT SUM(importe) FROM lineas_personal_contratado WHERE presupuesto_id = p.id), 0) +
+    COALESCE((SELECT SUM(importe) FROM lineas_personal_altas_bajas WHERE presupuesto_id = p.id), 0) +
+    COALESCE((SELECT SUM(importe) FROM lineas_logistica           WHERE presupuesto_id = p.id), 0)
+  )`;
+
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        p.numero, p.fecha_presupuesto, p.tipo, p.evento, p.localizacion,
+        p.tipologia, p.departamento, p.semana, p.tipo_facturacion,
+        p.fecha_inicio, p.fecha_fin, p.status, p.iva_porcentaje, p.notas,
+        p.numero_factura,
+        c.nombre AS cliente,
+        r.nombre AS responsable,
+        ${totalBrutoSQ} AS total_bruto
+      FROM presupuestos p
+      LEFT JOIN clientes c ON c.id = p.cliente_id
+      LEFT JOIN responsables r ON r.id = p.responsable_id
+      LEFT JOIN contactos_cliente cc ON cc.id = p.contacto_id
+      ${where}
+      ORDER BY p.fecha_presupuesto DESC, p.created_at DESC
+    `, params);
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Presupuestos');
+
+    ws.columns = [
+      { header: 'Nº',              key: 'numero',           width: 18 },
+      { header: 'Fecha',           key: 'fecha',            width: 12 },
+      { header: 'Tipo',            key: 'tipo',             width: 10 },
+      { header: 'Evento',          key: 'evento',           width: 35 },
+      { header: 'Cliente',         key: 'cliente',          width: 22 },
+      { header: 'Departamento',    key: 'departamento',     width: 22 },
+      { header: 'Responsable',     key: 'responsable',      width: 22 },
+      { header: 'Tipología',       key: 'tipologia',        width: 16 },
+      { header: 'Localización',    key: 'localizacion',     width: 20 },
+      { header: 'Semana',          key: 'semana',           width: 8  },
+      { header: 'Fecha inicio',    key: 'fecha_inicio',     width: 13 },
+      { header: 'Fecha fin',       key: 'fecha_fin',        width: 13 },
+      { header: 'Status',          key: 'status',           width: 18 },
+      { header: 'Tipo facturación',key: 'tipo_facturacion', width: 16 },
+      { header: 'Nº Factura SAP',  key: 'numero_factura',  width: 16 },
+      { header: 'IVA %',           key: 'iva',              width: 8  },
+      { header: 'Importe s/IVA',   key: 'importe',          width: 16 },
+      { header: 'Importe c/IVA',   key: 'importe_iva',      width: 16 },
+      { header: 'Notas',           key: 'notas',            width: 30 },
+    ];
+
+    // Cabecera
+    ws.getRow(1).eachCell(cell => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB91C1C' } };
+      cell.alignment = { vertical: 'middle' };
+    });
+    ws.getRow(1).height = 18;
+
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-ES') : '';
+
+    rows.forEach(p => {
+      const importe = parseFloat(p.total_bruto) || 0;
+      const iva     = parseFloat(p.iva_porcentaje) || 0;
+      ws.addRow({
+        numero:          p.numero,
+        fecha:           fmtDate(p.fecha_presupuesto),
+        tipo:            p.tipo,
+        evento:          p.evento,
+        cliente:         p.cliente,
+        departamento:    p.departamento?.replace(/_/g, ' '),
+        responsable:     p.responsable,
+        tipologia:       p.tipologia,
+        localizacion:    p.localizacion,
+        semana:          p.semana,
+        fecha_inicio:    fmtDate(p.fecha_inicio),
+        fecha_fin:       fmtDate(p.fecha_fin),
+        status:          p.status,
+        tipo_facturacion: p.tipo_facturacion,
+        numero_factura:  p.numero_factura,
+        iva:             iva,
+        importe:         importe,
+        importe_iva:     parseFloat((importe * (1 + iva / 100)).toFixed(2)),
+        notas:           p.notas,
+      });
+    });
+
+    // Formato numérico importes
+    const nCols = ['Q', 'R']; // importe + importe_iva (columnas 17-18)
+    ws.getColumn('Q').numFmt = '#,##0.00 €';
+    ws.getColumn('R').numFmt = '#,##0.00 €';
+    ws.getColumn('P').numFmt = '0.00"%"';
+
+    // Fila total
+    const lastRow = ws.lastRow.number + 1;
+    const totalRow = ws.addRow({
+      evento: `TOTAL (${rows.length} presupuestos)`,
+      importe: rows.reduce((s, p) => s + (parseFloat(p.total_bruto) || 0), 0),
+      importe_iva: rows.reduce((s, p) => {
+        const imp = parseFloat(p.total_bruto) || 0;
+        const iva = parseFloat(p.iva_porcentaje) || 0;
+        return s + imp * (1 + iva / 100);
+      }, 0),
+    });
+    totalRow.eachCell(cell => { cell.font = { bold: true }; });
+    totalRow.getCell('Q').numFmt = '#,##0.00 €';
+    totalRow.getCell('R').numFmt = '#,##0.00 €';
+
+    const buffer = await wb.xlsx.writeBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="presupuestos_lista.xlsx"');
+    res.send(buffer);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

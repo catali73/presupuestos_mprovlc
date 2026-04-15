@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Copy, Download, ChevronDown, Search, Filter, X, Trash2, Upload } from 'lucide-react';
+import { Plus, Copy, Download, ChevronDown, Search, Filter, X, Trash2, Upload, FileSpreadsheet } from 'lucide-react';
 import api from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 import ImportModal from './ImportModal';
@@ -25,7 +25,7 @@ function fmtEUR(val) {
   return int.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec + ' €';
 }
 
-const emptyFilters = { status: '', departamento: '', search: '', anyo: '', trimestre: '', mes: '' };
+const emptyFilters = { status: '', cliente_id: '', departamento: '', search: '', anyo: '', trimestre: '', mes: '' };
 
 export default function Presupuestos() {
   const navigate = useNavigate();
@@ -40,6 +40,11 @@ export default function Presupuestos() {
     queryFn: () => api.get('/presupuestos', { params: filters }).then(r => r.data),
   });
 
+  const { data: clientes = [] } = useQuery({
+    queryKey: ['clientes'],
+    queryFn: () => api.get('/clientes').then(r => r.data),
+  });
+
   const duplicate = useMutation({
     mutationFn: (id) => api.post(`/presupuestos/${id}/duplicate`),
     onSuccess: () => qc.invalidateQueries(['presupuestos']),
@@ -49,6 +54,13 @@ export default function Presupuestos() {
     mutationFn: (id) => api.delete(`/presupuestos/${id}`),
     onSuccess: () => { qc.invalidateQueries(['presupuestos']); setConfirmDelete(null); },
   });
+
+  const exportLista = async () => {
+    const res = await api.get('/presupuestos/export-lista', { params: filters, responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a'); a.href = url; a.download = 'presupuestos_lista.xlsx'; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const exportDoc = async (id, formato) => {
     const res = await api.get(`/presupuestos/${id}/export/${formato}`, { responseType: 'blob' });
@@ -112,7 +124,11 @@ export default function Presupuestos() {
             <option value="">Todos los status</option>
             {STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
           </select>
-          <select className="select w-48" value={filters.departamento} onChange={e => f('departamento', e.target.value)}>
+          <select className="select w-40" value={filters.cliente_id} onChange={e => f('cliente_id', e.target.value)}>
+            <option value="">Todos los clientes</option>
+            {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select>
+          <select className="select w-44" value={filters.departamento} onChange={e => f('departamento', e.target.value)}>
             <option value="">Todos los departamentos</option>
             {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d.replace(/_/g, ' ')}</option>)}
           </select>
@@ -158,11 +174,16 @@ export default function Presupuestos() {
           {isLoading ? 'Calculando...' : `${data?.total ?? 0} presupuesto${data?.total !== 1 ? 's' : ''}`}
           {hasFilters ? ' (filtrados)' : ''}
         </p>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">Total s/IVA:</span>
-          <span className="text-base font-bold text-gray-800">
-            {isLoading ? '…' : fmtEUR(data?.importe_total)}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">Total s/IVA:</span>
+            <span className="text-base font-bold text-gray-800">
+              {isLoading ? '…' : fmtEUR(data?.importe_total)}
+            </span>
+          </div>
+          <button onClick={exportLista} className="btn-secondary text-xs py-1.5" title="Exportar lista actual a Excel">
+            <FileSpreadsheet size={14} /> Exportar Excel
+          </button>
         </div>
       </div>
 
