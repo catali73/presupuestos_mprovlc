@@ -175,11 +175,16 @@ router.post('/import', auth, upload.single('file'), async (req, res) => {
   const ws = wb.getWorksheet(1);
   if (!ws) return res.status(400).json({ error: 'No se encontró la primera hoja del Excel' });
 
+  // Normalizar: quitar tildes, trim, lowercase (ej: "localización " → "localizacion")
+  function normalizeKey(s) {
+    return (s || '').toString().trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
   // Mapear cabeceras → número de columna
   const colIdx = {};
   ws.getRow(1).eachCell((cell, colNum) => {
-    const key = (cell.value || '').toString().trim().toLowerCase();
-    colIdx[key] = colNum;
+    colIdx[normalizeKey(cell.value)] = colNum;
   });
 
   // Cargar clientes y responsables para lookup por nombre
@@ -214,6 +219,24 @@ router.post('/import', auth, upload.single('file'), async (req, res) => {
   }
 
   const results = { created: 0, skipped: 0, errors: [] };
+
+  // Detectar columnas opcionales disponibles en la BD (por si las migraciones no se han ejecutado aún)
+  const { rows: colInfo } = await pool.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'presupuestos'
+    AND column_name IN ('numero_factura', 'tipo_facturacion', 'semana', 'tipologia', 'localizacion')
+  `);
+  const availableCols = new Set(colInfo.map(r => r.column_name));
+
+  // Detectar si el CHECK constraint de tipología sigue activo
+  const { rows: ckRows } = await pool.query(`
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE table_name = 'presupuestos'
+    AND constraint_name = 'presupuestos_tipologia_check'
+    AND constraint_type = 'CHECK'
+  `);
+  const tipologiaConstrained = ckRows.length > 0;
+  const TIPOLOGIA_ORIG = ['LIGA', 'CHAMPIONS', 'EVENTOS', 'PROGRAMAS'];
 
   // Recoger filas (saltando cabecera)
   const filas = [];
@@ -256,10 +279,14 @@ router.post('/import', auth, upload.single('file'), async (req, res) => {
       const semana_raw        = cellVal(row, 'semana');
       const semana            = semana_raw ? parseInt(semana_raw) || null : null;
       const tipo_facturacion  = cellVal(row, 'tipo_facturacion') || null;
-      const tipologia         = cellVal(row, 'tipologia') || null;
-      const localizacion      = cellVal(row, 'localizacion') || null;
-      const numero_factura    = cellVal(row, 'numero_factura') || null;
-      const notas             = cellVal(row, 'notas') || null;
+      const tipologiaRaw      = cellVal(row, 'tipologia') || null;
+      // Si el CHECK constraint sigue activo, sólo insertar valores originales
+      const tipologia = tipologiaConstrained
+        ? (TIPOLOGIA_ORIG.includes(tipologiaRaw) ? tipologiaRaw : null)
+        : tipologiaRaw;
+      const localizacion   = cellVal(row, 'localizacion') || null;
+      const numero_factura = cellVal(row, 'numero_factura') || null;
+      const notas          = cellVal(row, 'notas') || null;
 
       const numero_raw = cellVal(row, 'numero');
       const numero     = numero_raw ? numero_raw.toString().trim() : await generarNumero();
@@ -271,20 +298,27 @@ router.post('/import', auth, upload.single('file'), async (req, res) => {
         continue;
       }
 
+      // Construir INSERT dinámicamente según columnas disponibles en la BD
+      const cols = ['numero', 'tipo', 'cliente_id', 'responsable_id', 'departamento',
+                    'evento', 'fecha_presupuesto', 'fecha_inicio', 'fecha_fin', 'status', 'iva_porcentaje', 'notas'];
+      const vals = [numero, tipo, cliente_id || null, responsable_id || null, departamento,
+                    evento, fecha_presupuesto, fecha_inicio, fecha_fin, status, 21, notas];
+
+      if (availableCols.has('tipo_facturacion')) { cols.push('tipo_facturacion'); vals.push(tipo_facturacion); }
+      if (availableCols.has('semana'))           { cols.push('semana');           vals.push(semana); }
+      if (availableCols.has('tipologia'))        { cols.push('tipologia');        vals.push(tipologia); }
+      if (availableCols.has('localizacion'))     { cols.push('localizacion');     vals.push(localizacion); }
+      if (availableCols.has('numero_factura'))   { cols.push('numero_factura');   vals.push(numero_factura); }
+
+      const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ');
+
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
-        const { rows: pRows } = await client.query(`
-          INSERT INTO presupuestos
-            (numero, tipo, cliente_id, responsable_id, departamento, tipo_facturacion, semana,
-             tipologia, localizacion, numero_factura,
-             evento, fecha_presupuesto, fecha_inicio, fecha_fin, status, iva_porcentaje, notas)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,21,$16)
-          RETURNING id
-        `, [numero, tipo, cliente_id || null, responsable_id || null, departamento,
-            tipo_facturacion, semana, tipologia, localizacion, numero_factura,
-            evento, fecha_presupuesto, fecha_inicio, fecha_fin,
-            status, notas]);
+        const { rows: pRows } = await client.query(
+          `INSERT INTO presupuestos (${cols.join(', ')}) VALUES (${placeholders}) RETURNING id`,
+          vals
+        );
 
         const pid = pRows[0].id;
         if (importe > 0) {
