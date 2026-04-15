@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Save, ArrowLeft, Send, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, Send, Download, ChevronDown, ChevronUp, Paperclip, FileText as FilePdf, X } from 'lucide-react';
 import api from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 
 const DEPARTAMENTOS = ['CAMARAS_ESPECIALES', 'PRODUCCIONES_VLC', 'INTERNACIONAL', 'VALENCIA_MEDIA'];
-const TIPOLOGIAS = ['LIGA', 'CHAMPIONS', 'EVENTOS', 'PROGRAMAS'];
 const STATUSES = ['PREPARADO', 'ENVIADO', 'APROBADO', 'DESCARTADO', 'FACTURADO', 'PENDIENTE_FACTURAR'];
 const STATUS_CONFIG = {
   PREPARADO:          { label: 'Preparado',         dot: 'bg-gray-400',   badge: 'bg-gray-100 text-gray-700' },
@@ -237,7 +236,11 @@ export default function PresupuestoForm() {
     departamento: '', tipologia: '', tipo_facturacion: '', semana: '', evento: '', competicion: '',
     localizacion: '', fecha_inicio: '', fecha_fin: '',
     status: 'PREPARADO', iva_porcentaje: tipo === 'PERSONAL' ? 0 : 21, notas: '',
+    numero_factura: '',
   });
+  const [facturaPdfNombre, setFacturaPdfNombre] = useState(null);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const pdfInputRef = useRef();
   const [lineasEquip, setLineasEquip] = useState([]);
   const [lineasPersGeneral, setLineasPersGeneral] = useState([]);
   const [lineasLogistica, setLineasLogistica] = useState([]);
@@ -257,6 +260,7 @@ export default function PresupuestoForm() {
   // Cargar datos maestros
   const { data: clientes = [] } = useQuery({ queryKey: ['clientes'], queryFn: () => api.get('/clientes').then(r => r.data) });
   const { data: responsables = [] } = useQuery({ queryKey: ['responsables'], queryFn: () => api.get('/responsables').then(r => r.data) });
+  const { data: tipologias = [] } = useQuery({ queryKey: ['tipologias'], queryFn: () => api.get('/tipologias').then(r => r.data) });
   const { data: tarifasEquipos = [] } = useQuery({ queryKey: ['tarifas-equipos'], queryFn: () => api.get('/tarifas/equipos').then(r => r.data) });
   const { data: tarifasPersonas = [] } = useQuery({ queryKey: ['tarifas-personas'], queryFn: () => api.get('/tarifas/personas').then(r => r.data) });
   const { data: tarifasDietas = [] } = useQuery({ queryKey: ['tarifas-dietas'], queryFn: () => api.get('/tarifas/dietas').then(r => r.data) });
@@ -287,7 +291,9 @@ export default function PresupuestoForm() {
         status: presupuesto.status,
         iva_porcentaje: presupuesto.iva_porcentaje,
         notas: presupuesto.notas || '',
+        numero_factura: presupuesto.numero_factura || '',
       });
+      setFacturaPdfNombre(presupuesto.factura_pdf_nombre || null);
       setLineasEquip(presupuesto.lineas_equipamiento || []);
       setLineasPersGeneral(presupuesto.lineas_personal_general || []);
       setLineasLogistica(presupuesto.lineas_logistica || []);
@@ -349,6 +355,37 @@ export default function PresupuestoForm() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleUploadFacturaPdf = async (file) => {
+    if (!file || isNew) return;
+    setUploadingPdf(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data } = await api.post(`/presupuestos/${id}/factura`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setFacturaPdfNombre(data.nombre);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al subir PDF');
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
+
+  const handleDeleteFacturaPdf = async () => {
+    if (!window.confirm('¿Eliminar el PDF de factura adjunto?')) return;
+    try {
+      await api.delete(`/presupuestos/${id}/factura`);
+      setFacturaPdfNombre(null);
+    } catch (err) {
+      alert('Error al eliminar PDF');
+    }
+  };
+
+  const handleDownloadFacturaPdf = () => {
+    window.open(`${api.defaults.baseURL}/presupuestos/${id}/factura`, '_blank');
   };
 
   const handleExport = async (formato) => {
@@ -555,7 +592,7 @@ export default function PresupuestoForm() {
               <label className="label">Tipología</label>
               <select className="select" value={form.tipologia} onChange={e => setForm(f => ({ ...f, tipologia: e.target.value }))}>
                 <option value="">Seleccionar</option>
-                {TIPOLOGIAS.map(t => <option key={t} value={t}>{t}</option>)}
+                {tipologias.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
               </select>
             </div>
             <div>
@@ -570,6 +607,61 @@ export default function PresupuestoForm() {
             <div>
               <label className="label">IVA (%)</label>
               <input className="input" type="number" value={form.iva_porcentaje} onChange={e => setForm(f => ({ ...f, iva_porcentaje: e.target.value }))} />
+            </div>
+          </div>
+
+          {/* Factura SAP */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Nº Factura SAP</label>
+              <input
+                className="input"
+                placeholder="Ej: 5100012345"
+                value={form.numero_factura}
+                onChange={e => setForm(f => ({ ...f, numero_factura: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="label">PDF Factura</label>
+              {isNew ? (
+                <p className="text-xs text-gray-400 mt-2">Guarda primero el presupuesto para poder adjuntar el PDF</p>
+              ) : facturaPdfNombre ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={handleDownloadFacturaPdf}
+                    className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium truncate max-w-[200px]"
+                    title={facturaPdfNombre}
+                  >
+                    <FilePdf size={14} /> {facturaPdfNombre}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteFacturaPdf}
+                    className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-500 shrink-0"
+                    title="Eliminar PDF"
+                  ><X size={13} /></button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => pdfInputRef.current?.click()}
+                    disabled={uploadingPdf}
+                    className="btn-secondary text-sm mt-0.5"
+                  >
+                    <Paperclip size={14} />
+                    {uploadingPdf ? 'Subiendo...' : 'Adjuntar PDF'}
+                  </button>
+                  <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={e => handleUploadFacturaPdf(e.target.files[0])}
+                  />
+                </>
+              )}
             </div>
           </div>
 

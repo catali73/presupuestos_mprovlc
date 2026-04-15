@@ -19,6 +19,7 @@ app.use('/api/responsables', require('./routes/responsables'));
 app.use('/api/clientes', require('./routes/clientes'));
 app.use('/api/tarifas', require('./routes/tarifas'));
 app.use('/api/presupuestos', require('./routes/presupuestos'));
+app.use('/api/tipologias', require('./routes/tipologias'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 
 // Health check

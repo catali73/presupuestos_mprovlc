@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, FileText, Users, Settings, LogOut, ChevronRight, Building2, KanbanSquare, CalendarRange
+  LayoutDashboard, FileText, Users, Settings, LogOut, ChevronRight, Building2, KanbanSquare, CalendarRange, Tag
 } from 'lucide-react';
 
 const nav = [
@@ -10,6 +10,7 @@ const nav = [
   { to: '/kanban', label: 'Estado', icon: KanbanSquare },
   { to: '/facturacion-semanal', label: 'Facturación semanal', icon: CalendarRange },
   { to: '/clientes', label: 'Clientes', icon: Building2 },
+  { to: '/tipologias', label: 'Tipologías', icon: Tag },
   { to: '/tablas', label: 'Tarifas & Equipos', icon: Settings },
   { to: '/responsables', label: 'Responsables', icon: Users },
 ];

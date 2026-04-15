@@ -12,6 +12,7 @@ import Responsables from './pages/Responsables';
 import Tarifas from './pages/Tarifas';
 import Kanban from './pages/Kanban';
 import FacturacionSemanal from './pages/FacturacionSemanal';
+import Tipologias from './pages/Tipologias';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -40,6 +41,7 @@ export default function App() {
                       <Route path="/tablas" element={<Tarifas />} />
                       <Route path="/kanban" element={<Kanban />} />
                       <Route path="/facturacion-semanal" element={<FacturacionSemanal />} />
+                      <Route path="/tipologias" element={<Tipologias />} />
                     </Routes>
                   </Layout>
                 </ProtectedRoute>

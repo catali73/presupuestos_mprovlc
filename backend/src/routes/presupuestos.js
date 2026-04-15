@@ -94,11 +94,14 @@ router.get('/template', auth, async (req, res) => {
     { header: 'tipo',              key: 'tipo',              width: 12 },
     { header: 'departamento',      key: 'departamento',      width: 24 },
     { header: 'responsable',       key: 'responsable',       width: 24 },
+    { header: 'tipologia',         key: 'tipologia',         width: 18 },
+    { header: 'localizacion',      key: 'localizacion',      width: 28 },
     { header: 'fecha_inicio',      key: 'fecha_inicio',      width: 15 },
     { header: 'fecha_fin',         key: 'fecha_fin',         width: 15 },
     { header: 'status',            key: 'status',            width: 22 },
     { header: 'semana',            key: 'semana',            width: 10 },
     { header: 'tipo_facturacion',  key: 'tipo_facturacion',  width: 18 },
+    { header: 'numero_factura',    key: 'numero_factura',    width: 18 },
     { header: 'importe_sin_iva',   key: 'importe_sin_iva',   width: 18 },
     { header: 'notas',             key: 'notas',             width: 35 },
   ];
@@ -115,9 +118,10 @@ router.get('/template', auth, async (req, res) => {
     numero: '', fecha_presupuesto: '15/01/2026',
     evento: 'Partido LaLiga - Valencia CF vs Barcelona',
     cliente: 'MEDIAPRO', tipo: 'GENERAL', departamento: 'CAMARAS_ESPECIALES',
-    responsable: 'Juan García', fecha_inicio: '20/01/2026', fecha_fin: '21/01/2026',
+    responsable: 'Juan García', tipologia: 'LIGA', localizacion: 'Estadio Mestalla',
+    fecha_inicio: '20/01/2026', fecha_fin: '21/01/2026',
     status: 'FACTURADO', semana: 4, tipo_facturacion: 'Factura',
-    importe_sin_iva: 12500, notas: '',
+    numero_factura: '', importe_sin_iva: 12500, notas: '',
   });
 
   // Segunda hoja: valores permitidos
@@ -133,6 +137,9 @@ router.get('/template', auth, async (req, res) => {
     ['tipo_facturacion', 'Factura  |  Descuento  |  Imputación'],
     ['cliente', 'Debe coincidir exactamente con el nombre del cliente ya dado de alta en la app'],
     ['responsable', 'Debe coincidir exactamente con el nombre del responsable ya dado de alta en la app'],
+    ['tipologia', 'Debe coincidir exactamente con el nombre de la tipología dada de alta en la app (ej: LIGA)'],
+    ['localizacion', 'Texto libre — opcional'],
+    ['numero_factura', 'Número de factura SAP — opcional'],
     ['fecha_inicio / fecha_fin', 'DD/MM/YYYY — opcionales'],
     ['semana', 'Número de semana 1-53 — opcional'],
     ['importe_sin_iva', 'Importe total sin IVA en euros (número, sin símbolo €)'],
@@ -249,6 +256,9 @@ router.post('/import', auth, upload.single('file'), async (req, res) => {
       const semana_raw        = cellVal(row, 'semana');
       const semana            = semana_raw ? parseInt(semana_raw) || null : null;
       const tipo_facturacion  = cellVal(row, 'tipo_facturacion') || null;
+      const tipologia         = cellVal(row, 'tipologia') || null;
+      const localizacion      = cellVal(row, 'localizacion') || null;
+      const numero_factura    = cellVal(row, 'numero_factura') || null;
       const notas             = cellVal(row, 'notas') || null;
 
       const numero_raw = cellVal(row, 'numero');
@@ -267,11 +277,13 @@ router.post('/import', auth, upload.single('file'), async (req, res) => {
         const { rows: pRows } = await client.query(`
           INSERT INTO presupuestos
             (numero, tipo, cliente_id, responsable_id, departamento, tipo_facturacion, semana,
+             tipologia, localizacion, numero_factura,
              evento, fecha_presupuesto, fecha_inicio, fecha_fin, status, iva_porcentaje, notas)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,21,$13)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,21,$16)
           RETURNING id
         `, [numero, tipo, cliente_id || null, responsable_id || null, departamento,
-            tipo_facturacion, semana, evento, fecha_presupuesto, fecha_inicio, fecha_fin,
+            tipo_facturacion, semana, tipologia, localizacion, numero_factura,
+            evento, fecha_presupuesto, fecha_inicio, fecha_fin,
             status, notas]);
 
         const pid = pRows[0].id;
@@ -316,7 +328,7 @@ router.post('/', auth, async (req, res) => {
   const {
     tipo, cliente_id, contacto_id, responsable_id,
     departamento, tipologia, tipo_facturacion, semana, evento, competicion, localizacion,
-    fecha_inicio, fecha_fin, iva_porcentaje = 21, notas,
+    fecha_inicio, fecha_fin, iva_porcentaje = 21, notas, numero_factura,
     lineas_equipamiento = [], lineas_personal_general = [], lineas_logistica = [],
     lineas_personal_contratado = [], lineas_personal_altas_bajas = [],
   } = req.body;
@@ -334,8 +346,9 @@ router.post('/', auth, async (req, res) => {
     const { rows } = await client.query(`
       INSERT INTO presupuestos
         (numero, tipo, cliente_id, contacto_id, responsable_id, departamento, tipologia,
-         tipo_facturacion, semana, evento, competicion, localizacion, fecha_inicio, fecha_fin, iva_porcentaje, notas)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         tipo_facturacion, semana, evento, competicion, localizacion, fecha_inicio, fecha_fin,
+         iva_porcentaje, notas, numero_factura)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
       RETURNING *
     `, [
       numero, tipo,
@@ -343,6 +356,7 @@ router.post('/', auth, async (req, res) => {
       departamento || null, tipologia || null, tipo_facturacion || null, semana || null,
       evento || null, competicion || null, localizacion || null,
       fecha_inicio || null, fecha_fin || null, iva_porcentaje, notas || null,
+      numero_factura || null,
     ]);
     const pid = rows[0].id;
 
@@ -367,7 +381,7 @@ router.put('/:id', auth, async (req, res) => {
   const {
     tipo, cliente_id, contacto_id, responsable_id,
     departamento, tipologia, tipo_facturacion, semana, evento, competicion, localizacion,
-    fecha_inicio, fecha_fin, status, iva_porcentaje, notas,
+    fecha_inicio, fecha_fin, status, iva_porcentaje, notas, numero_factura,
     lineas_equipamiento = [], lineas_personal_general = [], lineas_logistica = [],
     lineas_personal_contratado = [], lineas_personal_altas_bajas = [],
   } = req.body;
@@ -381,14 +395,14 @@ router.put('/:id', auth, async (req, res) => {
         tipo=$1, cliente_id=$2, contacto_id=$3, responsable_id=$4,
         departamento=$5, tipologia=$6, tipo_facturacion=$7, semana=$8,
         evento=$9, competicion=$10, localizacion=$11, fecha_inicio=$12, fecha_fin=$13,
-        status=$14, iva_porcentaje=$15, notas=$16
-      WHERE id=$17
+        status=$14, iva_porcentaje=$15, notas=$16, numero_factura=$17
+      WHERE id=$18
     `, [
       tipo, cliente_id || null, contacto_id || null, responsable_id || null,
       departamento || null, tipologia || null, tipo_facturacion || null, semana || null,
       evento || null, competicion || null,
       localizacion || null, fecha_inicio || null, fecha_fin || null,
-      status, iva_porcentaje, notas || null, req.params.id,
+      status, iva_porcentaje, notas || null, numero_factura || null, req.params.id,
     ]);
 
     // Borrar y re-insertar todas las líneas
@@ -565,6 +579,53 @@ router.post('/export-lote', auth, async (req, res) => {
   }
 });
 
+// ─── FACTURA PDF: SUBIR ───────────────────────────────────────────────────────
+// POST /api/presupuestos/:id/factura
+router.post('/:id/factura', auth, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Fichero PDF requerido' });
+  if (!req.file.mimetype.includes('pdf')) return res.status(400).json({ error: 'Solo se admiten ficheros PDF' });
+  try {
+    await pool.query(
+      'UPDATE presupuestos SET factura_pdf=$1, factura_pdf_nombre=$2 WHERE id=$3',
+      [req.file.buffer, req.file.originalname, req.params.id]
+    );
+    res.json({ ok: true, nombre: req.file.originalname, size: req.file.size });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── FACTURA PDF: DESCARGAR ───────────────────────────────────────────────────
+// GET /api/presupuestos/:id/factura
+router.get('/:id/factura', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT factura_pdf, factura_pdf_nombre FROM presupuestos WHERE id=$1',
+      [req.params.id]
+    );
+    if (!rows.length || !rows[0].factura_pdf) return res.status(404).json({ error: 'Sin PDF adjunto' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${rows[0].factura_pdf_nombre || 'factura.pdf'}"`);
+    res.send(rows[0].factura_pdf);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── FACTURA PDF: BORRAR ──────────────────────────────────────────────────────
+// DELETE /api/presupuestos/:id/factura
+router.delete('/:id/factura', auth, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE presupuestos SET factura_pdf=NULL, factura_pdf_nombre=NULL WHERE id=$1',
+      [req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── ELIMINAR ─────────────────────────────────────────────────────────────────
 // DELETE /api/presupuestos/:id
 router.delete('/:id', auth, async (req, res) => {
@@ -581,7 +642,15 @@ router.delete('/:id', auth, async (req, res) => {
 async function getPresupuestoCompleto(id) {
   const { rows } = await pool.query(`
     SELECT
-      p.*,
+      p.id, p.numero, p.fecha_presupuesto, p.tipo, p.status,
+      p.cliente_id, p.contacto_id, p.responsable_id,
+      p.departamento, p.tipologia, p.tipo_facturacion, p.semana,
+      p.evento, p.competicion, p.localizacion,
+      p.fecha_inicio, p.fecha_fin, p.iva_porcentaje, p.notas,
+      p.numero_factura,
+      p.factura_pdf_nombre,
+      (p.factura_pdf IS NOT NULL) AS tiene_factura_pdf,
+      p.created_at, p.updated_at,
       row_to_json(c) AS cliente,
       row_to_json(r) AS responsable,
       row_to_json(cc) AS contacto
