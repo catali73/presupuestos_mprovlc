@@ -642,15 +642,7 @@ router.delete('/:id', auth, async (req, res) => {
 async function getPresupuestoCompleto(id) {
   const { rows } = await pool.query(`
     SELECT
-      p.id, p.numero, p.fecha_presupuesto, p.tipo, p.status,
-      p.cliente_id, p.contacto_id, p.responsable_id,
-      p.departamento, p.tipologia, p.tipo_facturacion, p.semana,
-      p.evento, p.competicion, p.localizacion,
-      p.fecha_inicio, p.fecha_fin, p.iva_porcentaje, p.notas,
-      p.numero_factura,
-      p.factura_pdf_nombre,
-      (p.factura_pdf IS NOT NULL) AS tiene_factura_pdf,
-      p.created_at, p.updated_at,
+      p.*,
       row_to_json(c) AS cliente,
       row_to_json(r) AS responsable,
       row_to_json(cc) AS contacto
@@ -663,6 +655,13 @@ async function getPresupuestoCompleto(id) {
 
   if (!rows.length) return null;
   const p = rows[0];
+  // No enviar el binario del PDF en cada carga — sólo el nombre y si existe
+  if (p.factura_pdf) {
+    p.tiene_factura_pdf = true;
+    delete p.factura_pdf;
+  } else {
+    p.tiene_factura_pdf = false;
+  }
 
   const [equip, persGeneral, logistica, persCont, persAB] = await Promise.all([
     pool.query('SELECT * FROM lineas_equipamiento WHERE presupuesto_id=$1 ORDER BY orden', [id]),
