@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Copy, Download, ChevronDown, Search, Filter, X, Trash2 } from 'lucide-react';
+import { Plus, Copy, Download, ChevronDown, Search, Filter, X, Trash2, Upload } from 'lucide-react';
 import api from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
+import ImportModal from './ImportModal';
 
 const DEPARTAMENTOS = ['CAMARAS_ESPECIALES', 'PRODUCCIONES_VLC', 'INTERNACIONAL', 'VALENCIA_MEDIA'];
 const STATUSES = ['PREPARADO', 'ENVIADO', 'APROBADO', 'DESCARTADO', 'FACTURADO', 'PENDIENTE_FACTURAR'];
@@ -31,6 +32,7 @@ export default function Presupuestos() {
   const qc = useQueryClient();
   const [filters, setFilters] = useState(emptyFilters);
   const [showNewMenu, setShowNewMenu] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null); // { id, numero, evento }
 
   const { data, isLoading } = useQuery({
@@ -69,7 +71,11 @@ export default function Presupuestos() {
           </p>
         </div>
 
-        <div className="relative">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowImport(true)} className="btn-secondary text-sm">
+            <Upload size={15} /> Importar
+          </button>
+          <div className="relative">
           <button onClick={() => setShowNewMenu(v => !v)} className="btn-primary">
             <Plus size={16} /> Nuevo presupuesto <ChevronDown size={14} />
           </button>
@@ -85,6 +91,7 @@ export default function Presupuestos() {
               >Presupuesto Personal Valencia</button>
             </div>
           )}
+          </div>
         </div>
       </div>
 
@@ -263,6 +270,14 @@ export default function Presupuestos() {
           </table>
         </div>
       </div>
+      {/* Modal importación */}
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onSuccess={() => { qc.invalidateQueries(['presupuestos']); }}
+        />
+      )}
+
       {/* Modal confirmación de borrado */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

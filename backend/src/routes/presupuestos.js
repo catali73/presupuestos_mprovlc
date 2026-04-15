@@ -1,9 +1,12 @@
 const router = require('express').Router();
+const multer = require('multer');
 const pool = require('../config/database');
 const auth = require('../middleware/auth');
 const generarNumero = require('../utils/numeroPresupuesto');
 const { exportExcel, exportPdf, exportExcelLote, exportPdfLote } = require('../utils/exportService');
 const emailService = require('../utils/emailService');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // ─── LISTADO con filtros ──────────────────────────────────────────────────────
 // GET /api/presupuestos?status=&departamento=&tipo=&search=&anyo=&trimestre=&mes=&semana=&page=&limit=
@@ -74,6 +77,225 @@ router.get('/', auth, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── PLANTILLA EXCEL PARA IMPORTACIÓN ────────────────────────────────────────
+// GET /api/presupuestos/template
+router.get('/template', auth, async (req, res) => {
+  const ExcelJS = require('exceljs');
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Presupuestos');
+
+  ws.columns = [
+    { header: 'numero',            key: 'numero',            width: 20 },
+    { header: 'fecha_presupuesto', key: 'fecha_presupuesto', width: 18 },
+    { header: 'evento',            key: 'evento',            width: 35 },
+    { header: 'cliente',           key: 'cliente',           width: 25 },
+    { header: 'tipo',              key: 'tipo',              width: 12 },
+    { header: 'departamento',      key: 'departamento',      width: 24 },
+    { header: 'responsable',       key: 'responsable',       width: 24 },
+    { header: 'fecha_inicio',      key: 'fecha_inicio',      width: 15 },
+    { header: 'fecha_fin',         key: 'fecha_fin',         width: 15 },
+    { header: 'status',            key: 'status',            width: 22 },
+    { header: 'semana',            key: 'semana',            width: 10 },
+    { header: 'tipo_facturacion',  key: 'tipo_facturacion',  width: 18 },
+    { header: 'importe_sin_iva',   key: 'importe_sin_iva',   width: 18 },
+    { header: 'notas',             key: 'notas',             width: 35 },
+  ];
+
+  ws.getRow(1).eachCell(cell => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB91C1C' } };
+    cell.alignment = { vertical: 'middle' };
+  });
+  ws.getRow(1).height = 20;
+
+  // Fila de ejemplo
+  ws.addRow({
+    numero: '', fecha_presupuesto: '15/01/2026',
+    evento: 'Partido LaLiga - Valencia CF vs Barcelona',
+    cliente: 'MEDIAPRO', tipo: 'GENERAL', departamento: 'CAMARAS_ESPECIALES',
+    responsable: 'Juan García', fecha_inicio: '20/01/2026', fecha_fin: '21/01/2026',
+    status: 'FACTURADO', semana: 4, tipo_facturacion: 'Factura',
+    importe_sin_iva: 12500, notas: '',
+  });
+
+  // Segunda hoja: valores permitidos
+  const ref = wb.addWorksheet('Valores permitidos');
+  ref.columns = [{ width: 22 }, { width: 75 }];
+  const refRows = [
+    ['Campo', 'Valores permitidos / notas'],
+    ['numero', 'Si se deja vacío, se genera automáticamente con el formato YYYYMMDDXXX'],
+    ['fecha_presupuesto', 'DD/MM/YYYY — si vacío se usa la fecha de importación'],
+    ['tipo', 'GENERAL  |  PERSONAL'],
+    ['departamento', 'CAMARAS_ESPECIALES  |  PRODUCCIONES_VLC  |  INTERNACIONAL  |  VALENCIA_MEDIA'],
+    ['status', 'PREPARADO  |  ENVIADO  |  APROBADO  |  DESCARTADO  |  FACTURADO  |  PENDIENTE_FACTURAR'],
+    ['tipo_facturacion', 'Factura  |  Descuento  |  Imputación'],
+    ['cliente', 'Debe coincidir exactamente con el nombre del cliente ya dado de alta en la app'],
+    ['responsable', 'Debe coincidir exactamente con el nombre del responsable ya dado de alta en la app'],
+    ['fecha_inicio / fecha_fin', 'DD/MM/YYYY — opcionales'],
+    ['semana', 'Número de semana 1-53 — opcional'],
+    ['importe_sin_iva', 'Importe total sin IVA en euros (número, sin símbolo €)'],
+  ];
+  refRows.forEach((r, i) => {
+    const row = ref.addRow(r);
+    if (i === 0) {
+      row.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF374151' } };
+      });
+    }
+  });
+
+  const buffer = await wb.xlsx.writeBuffer();
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="plantilla_importacion_presupuestos.xlsx"');
+  res.send(buffer);
+});
+
+// ─── IMPORTAR DESDE EXCEL ─────────────────────────────────────────────────────
+// POST /api/presupuestos/import
+router.post('/import', auth, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Fichero Excel requerido' });
+
+  const ExcelJS = require('exceljs');
+  const wb = new ExcelJS.Workbook();
+  try {
+    await wb.xlsx.load(req.file.buffer);
+  } catch (e) {
+    return res.status(400).json({ error: 'Fichero no válido: ' + e.message });
+  }
+  const ws = wb.getWorksheet(1);
+  if (!ws) return res.status(400).json({ error: 'No se encontró la primera hoja del Excel' });
+
+  // Mapear cabeceras → número de columna
+  const colIdx = {};
+  ws.getRow(1).eachCell((cell, colNum) => {
+    const key = (cell.value || '').toString().trim().toLowerCase();
+    colIdx[key] = colNum;
+  });
+
+  // Cargar clientes y responsables para lookup por nombre
+  const { rows: clientes }     = await pool.query('SELECT id, nombre FROM clientes');
+  const { rows: responsables } = await pool.query('SELECT id, nombre FROM responsables');
+  const clienteMap     = Object.fromEntries(clientes.map(c     => [c.nombre.trim().toLowerCase(), c.id]));
+  const responsableMap = Object.fromEntries(responsables.map(r => [r.nombre.trim().toLowerCase(), r.id]));
+
+  const VALID_TIPOS    = ['GENERAL', 'PERSONAL'];
+  const VALID_STATUSES = ['PREPARADO', 'ENVIADO', 'APROBADO', 'DESCARTADO', 'FACTURADO', 'PENDIENTE_FACTURAR'];
+  const VALID_DEPTOS   = ['CAMARAS_ESPECIALES', 'PRODUCCIONES_VLC', 'INTERNACIONAL', 'VALENCIA_MEDIA'];
+
+  function cellVal(row, key) {
+    const col = colIdx[key];
+    if (!col) return null;
+    const v = row.getCell(col).value;
+    if (v == null) return null;
+    if (v instanceof Date) return v;
+    if (typeof v === 'object' && v.richText) return v.richText.map(r => r.text).join('');
+    if (typeof v === 'object' && v.result != null) return String(v.result);
+    return String(v).trim() || null;
+  }
+
+  function parseDate(val) {
+    if (!val) return null;
+    if (val instanceof Date) return val.toISOString().slice(0, 10);
+    const s = String(val);
+    const m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    return null;
+  }
+
+  const results = { created: 0, skipped: 0, errors: [] };
+
+  // Recoger filas (saltando cabecera)
+  const filas = [];
+  ws.eachRow((row, rowNum) => { if (rowNum > 1) filas.push({ row, rowNum }); });
+
+  for (const { row, rowNum } of filas) {
+    const evento        = cellVal(row, 'evento');
+    const importe_raw   = cellVal(row, 'importe_sin_iva');
+    // Fila vacía → saltar silenciosamente
+    if (!evento && !importe_raw) { results.skipped++; continue; }
+
+    try {
+      const tipo_raw   = (cellVal(row, 'tipo') || 'GENERAL').toUpperCase();
+      const tipo       = VALID_TIPOS.includes(tipo_raw) ? tipo_raw : 'GENERAL';
+
+      const status_raw = (cellVal(row, 'status') || 'PREPARADO').toUpperCase();
+      const status     = VALID_STATUSES.includes(status_raw) ? status_raw : 'PREPARADO';
+
+      const depto_raw  = (cellVal(row, 'departamento') || '').toUpperCase().replace(/\s+/g, '_');
+      const departamento = VALID_DEPTOS.includes(depto_raw) ? depto_raw : null;
+
+      const clienteNombre = cellVal(row, 'cliente') || '';
+      const cliente_id    = clienteNombre ? clienteMap[clienteNombre.toLowerCase()] : null;
+      if (clienteNombre && !cliente_id) {
+        results.errors.push({ fila: rowNum, evento, error: `Cliente "${clienteNombre}" no encontrado en la app` });
+        continue;
+      }
+
+      const respNombre    = cellVal(row, 'responsable') || '';
+      const responsable_id = respNombre ? responsableMap[respNombre.toLowerCase()] : null;
+      if (respNombre && !responsable_id) {
+        results.errors.push({ fila: rowNum, evento, error: `Responsable "${respNombre}" no encontrado en la app` });
+        continue;
+      }
+
+      const importe          = parseFloat(importe_raw) || 0;
+      const fecha_presupuesto = parseDate(cellVal(row, 'fecha_presupuesto')) || new Date().toISOString().slice(0, 10);
+      const fecha_inicio      = parseDate(cellVal(row, 'fecha_inicio'));
+      const fecha_fin         = parseDate(cellVal(row, 'fecha_fin'));
+      const semana_raw        = cellVal(row, 'semana');
+      const semana            = semana_raw ? parseInt(semana_raw) || null : null;
+      const tipo_facturacion  = cellVal(row, 'tipo_facturacion') || null;
+      const notas             = cellVal(row, 'notas') || null;
+
+      const numero_raw = cellVal(row, 'numero');
+      const numero     = numero_raw ? numero_raw.toString().trim() : await generarNumero();
+
+      // Verificar que el número no esté ya en uso
+      const { rows: exist } = await pool.query('SELECT id FROM presupuestos WHERE numero=$1', [numero]);
+      if (exist.length) {
+        results.errors.push({ fila: rowNum, evento, error: `Número "${numero}" ya existe (duplicado)` });
+        continue;
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const { rows: pRows } = await client.query(`
+          INSERT INTO presupuestos
+            (numero, tipo, cliente_id, responsable_id, departamento, tipo_facturacion, semana,
+             evento, fecha_presupuesto, fecha_inicio, fecha_fin, status, iva_porcentaje, notas)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,21,$13)
+          RETURNING id
+        `, [numero, tipo, cliente_id || null, responsable_id || null, departamento,
+            tipo_facturacion, semana, evento, fecha_presupuesto, fecha_inicio, fecha_fin,
+            status, notas]);
+
+        const pid = pRows[0].id;
+        if (importe > 0) {
+          await client.query(
+            `INSERT INTO lineas_equipamiento (presupuesto_id, descripcion, importe, orden)
+             VALUES ($1, 'Presupuesto consolidado', $2, 0)`,
+            [pid, importe]
+          );
+        }
+        await client.query('COMMIT');
+        results.created++;
+      } catch (rowErr) {
+        await client.query('ROLLBACK');
+        results.errors.push({ fila: rowNum, evento, error: rowErr.message });
+      } finally {
+        client.release();
+      }
+    } catch (parseErr) {
+      results.errors.push({ fila: rowNum, evento, error: parseErr.message });
+    }
+  }
+
+  res.json(results);
 });
 
 // ─── DETALLE COMPLETO ─────────────────────────────────────────────────────────
