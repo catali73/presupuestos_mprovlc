@@ -60,8 +60,8 @@ export default function Presupuestos() {
   const hasFilters = Object.values(filters).some(v => v !== '');
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Presupuestos</h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -165,23 +165,21 @@ export default function Presupuestos() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="table-th">Nº / Fecha</th>
-                <th className="table-th">Tipo</th>
-                <th className="table-th">Evento</th>
-                <th className="table-th">Cliente</th>
-                <th className="table-th">Departamento</th>
-                <th className="table-th">Responsable</th>
-                <th className="table-th">Fechas</th>
-                <th className="table-th text-right">Importe s/IVA</th>
-                <th className="table-th">Status</th>
-                <th className="table-th text-right">Acciones</th>
+                <th className="table-th-sm w-36">Nº / Fecha</th>
+                <th className="table-th-sm">Evento</th>
+                <th className="table-th-sm w-36">Cliente</th>
+                <th className="table-th-sm w-40">Depto · Responsable</th>
+                <th className="table-th-sm w-32">Fechas</th>
+                <th className="table-th-sm w-28 text-right">Importe s/IVA</th>
+                <th className="table-th-sm w-32">Status</th>
+                <th className="table-th-sm w-24 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={10} className="table-td text-center text-gray-400 py-12">Cargando...</td></tr>
+                <tr><td colSpan={8} className="table-td-sm text-center text-gray-400 py-12">Cargando...</td></tr>
               ) : !data?.data?.length ? (
-                <tr><td colSpan={10} className="table-td text-center text-gray-400 py-12">No hay presupuestos</td></tr>
+                <tr><td colSpan={8} className="table-td-sm text-center text-gray-400 py-12">No hay presupuestos</td></tr>
               ) : (
                 data.data.map(p => (
                   <tr
@@ -189,45 +187,59 @@ export default function Presupuestos() {
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => navigate(`/presupuestos/${p.id}`)}
                   >
-                    <td className="table-td">
-                      <p className="font-mono text-xs text-gray-500">{p.numero}</p>
-                      <p className="text-xs text-gray-400">{p.fecha_presupuesto ? new Date(p.fecha_presupuesto).toLocaleDateString('es-ES') : '—'}</p>
-                    </td>
-                    <td className="table-td">
-                      <span className={`badge text-xs ${p.tipo === 'GENERAL' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                        {p.tipo === 'GENERAL' ? 'General' : 'Personal'}
+                    {/* Nº + Fecha + Tipo badge */}
+                    <td className="table-td-sm whitespace-nowrap">
+                      <span className={`badge text-[10px] px-1.5 py-0 mb-0.5 ${p.tipo === 'GENERAL' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                        {p.tipo === 'GENERAL' ? 'GEN' : 'PERS'}
                       </span>
+                      <p className="font-mono text-xs text-gray-600 leading-tight">{p.numero}</p>
+                      <p className="text-[10px] text-gray-400">{p.fecha_presupuesto ? new Date(p.fecha_presupuesto).toLocaleDateString('es-ES') : '—'}</p>
                     </td>
-                    <td className="table-td font-medium max-w-xs truncate">{p.evento || '—'}</td>
-                    <td className="table-td text-gray-600">{p.cliente_nombre || '—'}</td>
-                    <td className="table-td text-xs text-gray-500">{p.departamento?.replace(/_/g, ' ') || '—'}</td>
-                    <td className="table-td text-gray-600">{p.responsable_nombre || '—'}</td>
-                    <td className="table-td text-xs">
+                    {/* Evento */}
+                    <td className="table-td-sm max-w-0">
+                      <p className="font-medium text-gray-800 truncate" title={p.evento}>{p.evento || '—'}</p>
+                    </td>
+                    {/* Cliente */}
+                    <td className="table-td-sm max-w-0">
+                      <p className="text-gray-600 truncate" title={p.cliente_nombre}>{p.cliente_nombre || '—'}</p>
+                    </td>
+                    {/* Depto + Responsable fusionados */}
+                    <td className="table-td-sm">
+                      <p className="text-gray-500 leading-tight truncate" title={p.departamento?.replace(/_/g, ' ')}>
+                        {p.departamento?.replace(/_/g, ' ') || '—'}
+                      </p>
+                      <p className="text-[10px] text-gray-400 truncate">{p.responsable_nombre || ''}</p>
+                    </td>
+                    {/* Fechas */}
+                    <td className="table-td-sm whitespace-nowrap text-gray-500">
                       {p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString('es-ES') : ''}
-                      {p.fecha_inicio && p.fecha_fin ? ' → ' : ''}
-                      {p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString('es-ES') : '—'}
+                      {p.fecha_inicio && p.fecha_fin ? <br /> : null}
+                      {p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString('es-ES') : (!p.fecha_inicio ? '—' : '')}
                     </td>
-                    <td className="table-td text-right font-medium text-gray-800 tabular-nums">
+                    {/* Importe */}
+                    <td className="table-td-sm text-right font-medium text-gray-800 tabular-nums whitespace-nowrap">
                       {parseFloat(p.total_bruto) > 0 ? fmtEUR(p.total_bruto) : <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="table-td"><StatusBadge status={p.status} /></td>
-                    <td className="table-td text-right" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1">
+                    {/* Status */}
+                    <td className="table-td-sm"><StatusBadge status={p.status} /></td>
+                    {/* Acciones */}
+                    <td className="table-td-sm text-right" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-0.5">
                         <button
                           title="Duplicar"
                           className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-700"
                           onClick={() => duplicate.mutate(p.id)}
-                        ><Copy size={14} /></button>
+                        ><Copy size={13} /></button>
                         <button
                           title="Exportar Excel"
                           className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-green-700"
                           onClick={() => exportDoc(p.id, 'excel')}
-                        ><Download size={14} /></button>
+                        ><Download size={13} /></button>
                         <button
                           title="Eliminar"
                           className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600"
                           onClick={() => setConfirmDelete({ id: p.id, numero: p.numero, evento: p.evento })}
-                        ><Trash2 size={14} /></button>
+                        ><Trash2 size={13} /></button>
                       </div>
                     </td>
                   </tr>
@@ -238,10 +250,10 @@ export default function Presupuestos() {
             {!isLoading && data?.data?.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-gray-200 bg-gray-50">
-                  <td colSpan={7} className="table-td text-xs text-gray-500 font-medium">
+                  <td colSpan={5} className="table-td-sm text-xs text-gray-500 font-medium">
                     {data.total} presupuesto{data.total !== 1 ? 's' : ''}{hasFilters ? ' filtrados' : ''}
                   </td>
-                  <td className="table-td text-right font-bold text-gray-900 tabular-nums">
+                  <td className="table-td-sm text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
                     {fmtEUR(data.importe_total)}
                   </td>
                   <td colSpan={2} />
