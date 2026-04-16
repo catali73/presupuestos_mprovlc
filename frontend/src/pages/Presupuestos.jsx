@@ -21,8 +21,7 @@ function fmtEUR(val) {
   if (val == null || val === '') return '—';
   const num = parseFloat(val);
   if (isNaN(num)) return '—';
-  const [int, dec] = num.toFixed(2).split('.');
-  return int.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec + ' €';
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
 }
 
 const emptyFilters = { status: '', cliente_id: '', departamento: '', tipologia: '', search: '', anyo: '', trimestre: '', mes: '' };

@@ -13,9 +13,10 @@ const COLUMNS = [
 ];
 
 function fmtEUR(v) {
-  if (!v && v !== 0) return '';
-  const [int, dec] = parseFloat(v).toFixed(2).split('.');
-  return int.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec + ' €';
+  if (v == null || (v === '' && v !== 0)) return '';
+  const num = parseFloat(v);
+  if (isNaN(num)) return '';
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
 }
 
 export default function Kanban() {

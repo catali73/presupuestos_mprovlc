@@ -19,8 +19,9 @@ function fmt(v) {
 function fmtK(v) {
   if (v == null || isNaN(v)) return '—';
   const n = parseFloat(v);
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} M€`;
-  if (Math.abs(n) >= 1_000)     return `${(n / 1_000).toLocaleString('es-ES',     { maximumFractionDigits: 0 })} k€`;
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${(n / 1_000_000).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} M€`;
+  if (abs >= 10_000)    return `${(n / 1_000).toLocaleString('es-ES',     { maximumFractionDigits: 0 })} k€`;
   return fmt(n);
 }
 function fmtMes(mes) {
