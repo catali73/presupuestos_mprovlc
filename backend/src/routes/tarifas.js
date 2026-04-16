@@ -84,41 +84,77 @@ router.delete('/personas/:id', auth, async (req, res) => {
 
 // ─── TARIFA DIETAS ───────────────────────────────────────────────────────────
 
+// Helper: detectar si la columna categoria ya existe en tarifa_dietas
+async function dietasCategoriaExists() {
+  const { rows } = await pool.query(`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='tarifa_dietas' AND column_name='categoria'
+  `);
+  return rows.length > 0;
+}
+
 router.get('/dietas', auth, async (req, res) => {
-  const { categoria } = req.query;
-  let query = 'SELECT * FROM tarifa_dietas WHERE activo=true';
-  const params = [];
-  if (categoria) { params.push(categoria); query += ` AND categoria=$${params.length}`; }
-  query += ' ORDER BY categoria, tipo_dieta';
-  const { rows } = await pool.query(query, params);
-  res.json(rows);
+  try {
+    const hasCategoria = await dietasCategoriaExists();
+    const { categoria } = req.query;
+    let query = 'SELECT * FROM tarifa_dietas WHERE activo=true';
+    const params = [];
+    if (hasCategoria && categoria) {
+      params.push(categoria);
+      query += ` AND categoria=$${params.length}`;
+    }
+    query += hasCategoria ? ' ORDER BY categoria, tipo_dieta' : ' ORDER BY tipo_dieta';
+    const { rows } = await pool.query(query, params);
+    // Si la columna aún no existe, devolver categoria por defecto
+    res.json(hasCategoria ? rows : rows.map(r => ({ ...r, categoria: 'CONTRATADO' })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post('/dietas', auth, async (req, res) => {
-  const { tipo_dieta, importe, categoria = 'CONTRATADO' } = req.body;
-  if (!tipo_dieta || importe == null) {
-    return res.status(400).json({ error: 'Tipo y importe son obligatorios' });
+  try {
+    const { tipo_dieta, importe, categoria = 'CONTRATADO' } = req.body;
+    if (!tipo_dieta || importe == null) {
+      return res.status(400).json({ error: 'Tipo y importe son obligatorios' });
+    }
+    const hasCategoria = await dietasCategoriaExists();
+    const { rows } = hasCategoria
+      ? await pool.query('INSERT INTO tarifa_dietas (tipo_dieta, importe, categoria) VALUES ($1,$2,$3) RETURNING *', [tipo_dieta, importe, categoria])
+      : await pool.query('INSERT INTO tarifa_dietas (tipo_dieta, importe) VALUES ($1,$2) RETURNING *', [tipo_dieta, importe]);
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  const { rows } = await pool.query(
-    'INSERT INTO tarifa_dietas (tipo_dieta, importe, categoria) VALUES ($1,$2,$3) RETURNING *',
-    [tipo_dieta, importe, categoria]
-  );
-  res.status(201).json(rows[0]);
 });
 
 router.put('/dietas/:id', auth, async (req, res) => {
-  const { tipo_dieta, importe, categoria, activo } = req.body;
-  const { rows } = await pool.query(
-    'UPDATE tarifa_dietas SET tipo_dieta=$1, importe=$2, categoria=$3, activo=$4 WHERE id=$5 RETURNING *',
-    [tipo_dieta, importe, categoria || 'CONTRATADO', activo ?? true, req.params.id]
-  );
-  if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
-  res.json(rows[0]);
+  try {
+    const { tipo_dieta, importe, categoria, activo } = req.body;
+    const hasCategoria = await dietasCategoriaExists();
+    const { rows } = hasCategoria
+      ? await pool.query(
+          'UPDATE tarifa_dietas SET tipo_dieta=$1, importe=$2, categoria=$3, activo=$4 WHERE id=$5 RETURNING *',
+          [tipo_dieta, importe, categoria || 'CONTRATADO', activo ?? true, req.params.id]
+        )
+      : await pool.query(
+          'UPDATE tarifa_dietas SET tipo_dieta=$1, importe=$2, activo=$3 WHERE id=$4 RETURNING *',
+          [tipo_dieta, importe, activo ?? true, req.params.id]
+        );
+    if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.delete('/dietas/:id', auth, async (req, res) => {
-  await pool.query('UPDATE tarifa_dietas SET activo=false WHERE id=$1', [req.params.id]);
-  res.json({ ok: true });
+  try {
+    await pool.query('UPDATE tarifa_dietas SET activo=false WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
