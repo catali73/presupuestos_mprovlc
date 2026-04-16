@@ -5,6 +5,7 @@ import { Plus, Copy, Download, ChevronDown, Search, Filter, X, Trash2, Upload, F
 import api from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 import ImportModal from './ImportModal';
+import { fmtEUR } from '../lib/format';
 
 const DEPARTAMENTOS = ['CAMARAS_ESPECIALES', 'PRODUCCIONES_VLC', 'INTERNACIONAL', 'VALENCIA_MEDIA'];
 const STATUSES = ['PREPARADO', 'ENVIADO', 'APROBADO', 'DESCARTADO', 'FACTURADO', 'PENDIENTE_FACTURAR'];
@@ -17,19 +18,18 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
-function fmtEUR(val) {
-  if (val == null || val === '') return '—';
-  const num = parseFloat(val);
-  if (isNaN(num)) return '—';
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
-}
-
 const emptyFilters = { status: '', cliente_id: '', departamento: '', tipologia: '', search: '', anyo: '', trimestre: '', mes: '' };
+const FILTER_KEY = 'presupuestos_filters';
 
 export default function Presupuestos() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [filters, setFilters] = useState(emptyFilters);
+  const [filters, setFilters] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(FILTER_KEY);
+      return saved ? { ...emptyFilters, ...JSON.parse(saved) } : emptyFilters;
+    } catch { return emptyFilters; }
+  });
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null); // { id, numero, evento }
@@ -74,7 +74,15 @@ export default function Presupuestos() {
     URL.revokeObjectURL(url);
   };
 
-  const f = (key, val) => setFilters(prev => ({ ...prev, [key]: val }));
+  const f = (key, val) => setFilters(prev => {
+    const next = { ...prev, [key]: val };
+    try { sessionStorage.setItem(FILTER_KEY, JSON.stringify(next)); } catch {}
+    return next;
+  });
+  const clearFilters = () => {
+    try { sessionStorage.removeItem(FILTER_KEY); } catch {}
+    setFilters(emptyFilters);
+  };
   const hasFilters = Object.values(filters).some(v => v !== '');
 
   return (
@@ -141,7 +149,7 @@ export default function Presupuestos() {
             {tipologias.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
           </select>
           {hasFilters && (
-            <button className="btn-ghost text-xs" onClick={() => setFilters(emptyFilters)}>
+            <button className="btn-ghost text-xs" onClick={clearFilters}>
               <X size={13} /> Limpiar
             </button>
           )}

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import { fmtEUR } from '../lib/format';
 
 const COLUMNS = [
   { key: 'PREPARADO',          label: 'Preparado',        dot: 'bg-gray-400',   header: 'bg-gray-100 text-gray-700',    border: 'border-gray-200' },
@@ -12,12 +13,6 @@ const COLUMNS = [
   { key: 'DESCARTADO',         label: 'Descartado',       dot: 'bg-gray-300',   header: 'bg-gray-50 text-gray-500',     border: 'border-gray-200' },
 ];
 
-function fmtEUR(v) {
-  if (v == null || (v === '' && v !== 0)) return '';
-  const num = parseFloat(v);
-  if (isNaN(num)) return '';
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
-}
 
 export default function Kanban() {
   const qc = useQueryClient();

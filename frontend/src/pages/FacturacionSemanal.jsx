@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Download, FileSpreadsheet, FileText, ExternalLink } from 'lucide-react';
 import api from '../lib/api';
+import { fmtEUR } from '../lib/format';
 
 function getISOWeek(date = new Date()) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -10,13 +11,6 @@ function getISOWeek(date = new Date()) {
   d.setUTCDate(d.getUTCDate() + 4 - day);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-}
-
-function fmtEUR(v) {
-  if (v == null || (v === '' && v !== 0)) return '—';
-  const num = parseFloat(v);
-  if (isNaN(num)) return '—';
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
 }
 
 const STATUS_CONFIG = {

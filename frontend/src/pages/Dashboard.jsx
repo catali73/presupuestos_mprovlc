@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import api from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
+import { fmtEUR0 as fmt, fmtK } from '../lib/format';
 
 const STATUS_CARDS = ['ENVIADO', 'APROBADO', 'PENDIENTE_FACTURAR', 'FACTURADO'];
 const STATUS_CFG = {
@@ -10,20 +11,6 @@ const STATUS_CFG = {
   PENDIENTE_FACTURAR: { border: 'border-orange-200', bg: 'bg-orange-50', txt: 'text-orange-700' },
   FACTURADO:          { border: 'border-purple-200', bg: 'bg-purple-50', txt: 'text-purple-700' },
 };
-
-/* ── Formatters ─────────────────────────────────────────────────────────────── */
-function fmt(v) {
-  if (v == null || isNaN(v)) return '—';
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
-}
-function fmtK(v) {
-  if (v == null || isNaN(v)) return '—';
-  const n = parseFloat(v);
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `${(n / 1_000_000).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} M€`;
-  if (abs >= 10_000)    return `${(n / 1_000).toLocaleString('es-ES',     { maximumFractionDigits: 0 })} k€`;
-  return fmt(n);
-}
 function fmtMes(mes) {
   const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const m = parseInt(mes?.split('-')[1]) - 1;
