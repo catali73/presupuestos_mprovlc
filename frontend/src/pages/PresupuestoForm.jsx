@@ -263,7 +263,9 @@ export default function PresupuestoForm() {
   const { data: tipologias = [] } = useQuery({ queryKey: ['tipologias'], queryFn: () => api.get('/tipologias').then(r => r.data) });
   const { data: tarifasEquipos = [] } = useQuery({ queryKey: ['tarifas-equipos'], queryFn: () => api.get('/tarifas/equipos').then(r => r.data) });
   const { data: tarifasPersonas = [] } = useQuery({ queryKey: ['tarifas-personas'], queryFn: () => api.get('/tarifas/personas').then(r => r.data) });
-  const { data: tarifasDietas = [] } = useQuery({ queryKey: ['tarifas-dietas'], queryFn: () => api.get('/tarifas/dietas').then(r => r.data) });
+  const { data: tarifasDietasRaw = [] } = useQuery({ queryKey: ['tarifas-dietas'], queryFn: () => api.get('/tarifas/dietas').then(r => r.data) });
+  const tarifasDietasCont = tarifasDietasRaw.filter(d => d.categoria === 'CONTRATADO');
+  const tarifasDietasAB   = tarifasDietasRaw.filter(d => d.categoria === 'ALTAS_BAJAS');
 
   // Cargar presupuesto existente
   const { data: presupuesto } = useQuery({
@@ -844,7 +846,7 @@ export default function PresupuestoForm() {
                         onMoveUp={() => moveLinea(setLineasPersCont, i, -1)}
                         onMoveDown={() => moveLinea(setLineasPersCont, i, 1)}
                         tarifasPersonas={tarifasContratado}
-                        tarifasDietas={tarifasDietas}
+                        tarifasDietas={tarifasDietasCont}
                         listPersonasId="personas-cont-list"
                       />
                     ))}
@@ -874,7 +876,7 @@ export default function PresupuestoForm() {
                         onMoveUp={() => moveLinea(setLineasPersAB, i, -1)}
                         onMoveDown={() => moveLinea(setLineasPersAB, i, 1)}
                         tarifasPersonas={tarifasAltasBajas}
-                        tarifasDietas={tarifasDietas}
+                        tarifasDietas={tarifasDietasAB}
                         listPersonasId="personas-ab-list"
                       />
                     ))}

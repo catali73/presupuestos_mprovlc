@@ -202,11 +202,16 @@ export default function Tarifas() {
         titulo="Tarifa Dietas"
         queryKey="tarifas-dietas"
         endpoint="/tarifas/dietas"
-        emptyForm={{ tipo_dieta: '', importe: '' }}
-        columns={['Tipo dieta', 'Importe']}
+        emptyForm={{ tipo_dieta: '', importe: '', categoria: 'CONTRATADO' }}
+        columns={['Tipo dieta', 'Personal', 'Importe']}
         renderRow={row => (
           <>
             <td className="table-td font-medium">{row.tipo_dieta}</td>
+            <td className="table-td">
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${row.categoria === 'ALTAS_BAJAS' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                {row.categoria === 'ALTAS_BAJAS' ? 'Altas / Bajas' : 'Contratado'}
+              </span>
+            </td>
             <td className="table-td">{fmtMoney(row.importe)}</td>
           </>
         )}
@@ -215,6 +220,13 @@ export default function Tarifas() {
             <div>
               <label className="label">Tipo dieta *</label>
               <input className="input" value={form.tipo_dieta} onChange={e => setForm(f => ({ ...f, tipo_dieta: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Para personal</label>
+              <select className="select" value={form.categoria || 'CONTRATADO'} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}>
+                <option value="CONTRATADO">Personal Contratado</option>
+                <option value="ALTAS_BAJAS">Altas / Bajas</option>
+              </select>
             </div>
             <div>
               <label className="label">Importe *</label>
