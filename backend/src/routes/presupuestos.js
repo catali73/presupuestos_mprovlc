@@ -450,7 +450,7 @@ router.post('/import', auth, upload.single('file'), async (req, res) => {
         );
 
         const pid = pRows[0].id;
-        if (importe > 0) {
+        if (importe !== 0) {
           await client.query(
             `INSERT INTO lineas_equipamiento (presupuesto_id, descripcion, importe, orden)
              VALUES ($1, 'Presupuesto consolidado', $2, 0)`,
