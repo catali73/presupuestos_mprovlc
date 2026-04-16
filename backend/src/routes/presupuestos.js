@@ -10,7 +10,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 // ─── HELPER: construir condiciones de filtro compartidas ─────────────────────
 function buildFilters(query) {
-  const { status, cliente_id, responsable_id, departamento, tipo, search, anyo, trimestre, mes, semana } = query;
+  const { status, cliente_id, responsable_id, departamento, tipologia, tipo, search, anyo, trimestre, mes, semana } = query;
   const conditions = [];
   const params = [];
 
@@ -18,6 +18,7 @@ function buildFilters(query) {
   if (cliente_id)     { params.push(parseInt(cliente_id)); conditions.push(`p.cliente_id = $${params.length}`); }
   if (responsable_id) { params.push(responsable_id);     conditions.push(`p.responsable_id = $${params.length}`); }
   if (departamento)   { params.push(departamento);       conditions.push(`p.departamento = $${params.length}`); }
+  if (tipologia)      { params.push(tipologia);          conditions.push(`p.tipologia = $${params.length}`); }
   if (tipo)           { params.push(tipo);               conditions.push(`p.tipo = $${params.length}`); }
   if (anyo)           { params.push(parseInt(anyo));     conditions.push(`EXTRACT(YEAR FROM p.fecha_presupuesto) = $${params.length}`); }
   if (trimestre)      { params.push(parseInt(trimestre)); conditions.push(`EXTRACT(QUARTER FROM p.fecha_presupuesto) = $${params.length}`); }

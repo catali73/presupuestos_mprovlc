@@ -25,7 +25,7 @@ function fmtEUR(val) {
   return int.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec + ' €';
 }
 
-const emptyFilters = { status: '', cliente_id: '', departamento: '', search: '', anyo: '', trimestre: '', mes: '' };
+const emptyFilters = { status: '', cliente_id: '', departamento: '', tipologia: '', search: '', anyo: '', trimestre: '', mes: '' };
 
 export default function Presupuestos() {
   const navigate = useNavigate();
@@ -43,6 +43,11 @@ export default function Presupuestos() {
   const { data: clientes = [] } = useQuery({
     queryKey: ['clientes'],
     queryFn: () => api.get('/clientes').then(r => r.data),
+  });
+
+  const { data: tipologias = [] } = useQuery({
+    queryKey: ['tipologias'],
+    queryFn: () => api.get('/tipologias').then(r => r.data),
   });
 
   const duplicate = useMutation({
@@ -131,6 +136,10 @@ export default function Presupuestos() {
           <select className="select w-44" value={filters.departamento} onChange={e => f('departamento', e.target.value)}>
             <option value="">Todos los departamentos</option>
             {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d.replace(/_/g, ' ')}</option>)}
+          </select>
+          <select className="select w-36" value={filters.tipologia} onChange={e => f('tipologia', e.target.value)}>
+            <option value="">Todas las tipologías</option>
+            {tipologias.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
           </select>
           {hasFilters && (
             <button className="btn-ghost text-xs" onClick={() => setFilters(emptyFilters)}>
@@ -246,7 +255,7 @@ export default function Presupuestos() {
                     </td>
                     {/* Importe */}
                     <td className="table-td-sm text-right font-medium text-gray-800 tabular-nums whitespace-nowrap">
-                      {parseFloat(p.total_bruto) > 0 ? fmtEUR(p.total_bruto) : <span className="text-gray-300">—</span>}
+                      {parseFloat(p.total_bruto) !== 0 ? fmtEUR(p.total_bruto) : <span className="text-gray-300">—</span>}
                     </td>
                     {/* Status */}
                     <td className="table-td-sm"><StatusBadge status={p.status} /></td>
