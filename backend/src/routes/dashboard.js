@@ -71,7 +71,21 @@ router.get('/', auth, async (req, res) => {
       ORDER BY importe DESC NULLS LAST
     `, [yearActual]);
 
-    // ── 6. Pendientes de facturar ─────────────────────────────────────────
+    // ── 6. Por cliente — año actual ───────────────────────────────────────
+    const { rows: porCliente } = await pool.query(`
+      SELECT
+        COALESCE(c.nombre, 'Sin cliente') AS cliente,
+        COUNT(*) AS count,
+        ROUND(SUM(${totalBrutoSQ}), 2) AS importe,
+        ROUND(AVG(${totalBrutoSQ}), 2) AS media
+      FROM presupuestos p
+      LEFT JOIN clientes c ON c.id = p.cliente_id
+      WHERE EXTRACT(YEAR FROM p.fecha_presupuesto) = $1
+      GROUP BY c.nombre
+      ORDER BY importe DESC NULLS LAST
+    `, [yearActual]);
+
+    // ── 7. Pendientes de facturar ─────────────────────────────────────────
     const { rows: pendientes } = await pool.query(`
       SELECT p.id, p.numero, p.evento, p.fecha_fin, c.nombre AS cliente
       FROM presupuestos p
@@ -81,7 +95,7 @@ router.get('/', auth, async (req, res) => {
       LIMIT 10
     `);
 
-    res.json({ stack, importes, porMes, porDepartamento, porTipologia, pendientes, yearActual });
+    res.json({ stack, importes, porMes, porDepartamento, porTipologia, porCliente, pendientes, yearActual });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

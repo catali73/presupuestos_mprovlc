@@ -203,6 +203,13 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* ── Desglose por cliente ── */}
+      <TablaDesglose
+        titulo={`Por cliente · ${data?.yearActual}`}
+        rows={data?.porCliente}
+        keyField="cliente"
+      />
+
       {/* ── Pendientes de facturar ── */}
       {data?.pendientes?.length > 0 && (
         <div className="card">
