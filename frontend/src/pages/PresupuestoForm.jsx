@@ -533,7 +533,8 @@ export default function PresupuestoForm() {
                 <Download size={14} /> PDF
               </button>
               <button onClick={() => {
-                setEmailTo(clienteSeleccionado?.contactos?.[0]?.email || '');
+                const contactoSeleccionado = contactos.find(c => c.id == form.contacto_id);
+                setEmailTo(contactoSeleccionado?.email || clienteSeleccionado?.contactos?.[0]?.email || '');
                 setEmailCc('');
                 setEmailAsunto(`Presupuesto ${form.evento || presupuesto?.numero || ''}`);
                 setEmailMensaje('');
