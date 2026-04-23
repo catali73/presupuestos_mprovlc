@@ -84,7 +84,7 @@ function LineaGeneral({ linea, onChange, onRemove, onMoveUp, onMoveDown, tarifas
           placeholder="Descripción o seleccionar..."
         />
       </td>
-      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" value={linea.unidades} onChange={e => handleChange('unidades', e.target.value)} /></td>
+      <td className="px-2 py-1.5 w-16"><input className="input text-xs text-center" type="number" step="0.5" value={linea.unidades} onChange={e => handleChange('unidades', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-20"><input className="input text-xs text-center" type="number" step="0.5" value={linea.jornadas} onChange={e => handleChange('jornadas', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right" type="number" value={linea.coste_jornada} onChange={e => handleChange('coste_jornada', e.target.value)} /></td>
       <td className="px-2 py-1.5 w-28"><input className="input text-xs text-right bg-gray-50" type="number" value={linea.importe} onChange={e => handleChange('importe', e.target.value)} /></td>
